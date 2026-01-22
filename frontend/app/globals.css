@@ -44,6 +44,25 @@ body {
   font-weight: 600;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 12px 20px;
+  background: #4338ca;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
 .auth-page {
   min-height: 100vh;
   display: flex;
