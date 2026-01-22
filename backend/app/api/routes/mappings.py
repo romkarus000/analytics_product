@@ -148,8 +148,12 @@ def _is_float(value: object) -> bool:
     return False
 
 
-def _read_csv_preview(file_path: Path) -> tuple[list[str], list[list[object]]]:
-    with file_path.open("r", encoding="utf-8-sig", newline="") as handle:
+def _read_csv_preview_with_encoding(
+    file_path: Path,
+    encoding: str,
+    errors: str = "strict",
+) -> tuple[list[str], list[list[object]]]:
+    with file_path.open("r", encoding=encoding, errors=errors, newline="") as handle:
         sample = handle.read(4096)
         handle.seek(0)
         try:
@@ -164,6 +168,17 @@ def _read_csv_preview(file_path: Path) -> tuple[list[str], list[list[object]]]:
             if len(rows) >= 20:
                 break
     return headers, rows
+
+
+def _read_csv_preview(file_path: Path) -> tuple[list[str], list[list[object]]]:
+    try:
+        return _read_csv_preview_with_encoding(file_path, "utf-8-sig")
+    except UnicodeDecodeError:
+        return _read_csv_preview_with_encoding(
+            file_path,
+            "cp1251",
+            errors="replace",
+        )
 
 
 def _read_xlsx_preview(file_path: Path) -> tuple[list[str], list[list[object]]]:
