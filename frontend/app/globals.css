@@ -298,6 +298,7 @@ body {
 .mapping-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
 }
 
 .normalization-options {
@@ -310,6 +311,36 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.quality-report {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.quality-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.quality-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.quality-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
 }
 
 .warning {

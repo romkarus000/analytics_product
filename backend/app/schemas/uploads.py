@@ -49,3 +49,26 @@ class ColumnMappingPublic(BaseModel):
     mapping_json: dict[str, Any]
     normalization_json: dict[str, Any]
     created_at: datetime
+
+
+class QualityIssue(BaseModel):
+    row: int
+    field: str
+    message: str
+
+
+class QualityStats(BaseModel):
+    total_rows: int
+    valid_rows: int
+    error_count: int
+    warning_count: int
+
+
+class QualityReport(BaseModel):
+    errors: list[QualityIssue]
+    warnings: list[QualityIssue]
+    stats: QualityStats
+
+
+class ImportResult(BaseModel):
+    imported: int
