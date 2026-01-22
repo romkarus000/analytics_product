@@ -161,7 +161,8 @@ body {
 
 .projects-header {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   align-items: center;
   gap: 12px;
 }
@@ -202,6 +203,25 @@ body {
 .project-detail {
   display: grid;
   gap: 16px;
+}
+
+.project-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.project-section h2 {
+  margin: 0 0 6px;
+}
+
+.project-section .muted {
+  margin: 0;
 }
 
 .project-meta {
