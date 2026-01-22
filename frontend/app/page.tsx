@@ -20,6 +20,11 @@ export default function HomePage() {
         авторизации. Следующие модули добавят бизнес-логику загрузки данных и
         аналитики.
       </p>
+      <div className="hero-actions">
+        <a className="primary-button" href="/login">
+          Войти
+        </a>
+      </div>
       <div className="grid">
         {steps.map((step) => (
           <div key={step} className="card">

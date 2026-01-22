@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+import { API_BASE } from "../../../lib/api";
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 const allowedExtensions = [".csv", ".xlsx"];
 

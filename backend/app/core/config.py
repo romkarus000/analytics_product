@@ -11,7 +11,13 @@ class Settings(BaseSettings):
     app_name: str = "analytics-product-api"
     log_level: str = "INFO"
     api_prefix: str = "/api"
-    allowed_origins: List[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    allowed_origins: List[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://0.0.0.0:3000",
+        ]
+    )
 
     database_url: str = "postgresql+psycopg://postgres:postgres@db:5432/analytics"
     redis_url: str = "redis://redis:6379/0"
