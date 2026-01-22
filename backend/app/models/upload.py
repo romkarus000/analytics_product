@@ -29,11 +29,19 @@ class Upload(Base):
         index=True,
     )
     type: Mapped[UploadType] = mapped_column(
-        SqlEnum(UploadType, name="upload_type"),
+        SqlEnum(
+            UploadType,
+            name="upload_type",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         nullable=False,
     )
     status: Mapped[UploadStatus] = mapped_column(
-        SqlEnum(UploadStatus, name="upload_status"),
+        SqlEnum(
+            UploadStatus,
+            name="upload_status",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         nullable=False,
     )
     file_path: Mapped[str] = mapped_column(String(512), nullable=False)
