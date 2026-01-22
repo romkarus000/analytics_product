@@ -1,4 +1,8 @@
 from app.models.column_mapping import ColumnMapping
+from app.models.dim_manager import DimManager
+from app.models.dim_manager_alias import DimManagerAlias
+from app.models.dim_product import DimProduct
+from app.models.dim_product_alias import DimProductAlias
 from app.models.fact_marketing_spend import FactMarketingSpend
 from app.models.fact_transaction import FactTransaction
 from app.models.project import Project
@@ -7,6 +11,10 @@ from app.models.user import User
 
 __all__ = [
     "ColumnMapping",
+    "DimManager",
+    "DimManagerAlias",
+    "DimProduct",
+    "DimProductAlias",
     "FactMarketingSpend",
     "FactTransaction",
     "Project",
