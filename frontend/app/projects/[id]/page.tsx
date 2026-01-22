@@ -15,6 +15,7 @@ type ProjectDetail = {
 export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const projectId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [error, setError] = useState("");
 
@@ -25,7 +26,6 @@ export default function ProjectDetailPage() {
       return;
     }
 
-    const projectId = Array.isArray(params.id) ? params.id[0] : params.id;
     if (!projectId) {
       setError("Проект не найден.");
       return;
@@ -69,6 +69,13 @@ export default function ProjectDetailPage() {
             onClick={() => router.push("/projects")}
           >
             Назад к проектам
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/projects/${projectId}/uploads`)}
+            disabled={!projectId}
+          >
+            Загрузки данных
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}

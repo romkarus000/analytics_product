@@ -81,6 +81,14 @@ body {
   font-size: 16px;
 }
 
+.field select {
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 12px 14px;
+  font-size: 16px;
+  background: #ffffff;
+}
+
 .auth-card button {
   border: none;
   border-radius: 12px;
@@ -180,4 +188,71 @@ body {
 .project-meta {
   display: grid;
   gap: 12px;
+}
+
+.uploads-card {
+  width: min(640px, 100%);
+}
+
+.upload-form {
+  display: grid;
+  gap: 16px;
+}
+
+.upload-history {
+  display: grid;
+  gap: 12px;
+}
+
+.upload-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.upload-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.upload-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.upload-status {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-uploaded {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-validated {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.status-imported {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #b91c1c;
 }
