@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UploadType(str, Enum):
@@ -25,4 +26,26 @@ class UploadPublic(BaseModel):
     status: UploadStatus
     file_path: str
     original_filename: str
+    created_at: datetime
+
+
+class UploadPreview(BaseModel):
+    headers: list[str]
+    sample_rows: list[list[Any]]
+    inferred_types: dict[str, str]
+    mapping_suggestions: dict[str, str | None]
+    upload_type: UploadType | None = None
+
+
+class ColumnMappingCreate(BaseModel):
+    mapping: dict[str, str | None] = Field(default_factory=dict)
+    normalization: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+
+class ColumnMappingPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    upload_id: int
+    mapping_json: dict[str, Any]
+    normalization_json: dict[str, Any]
     created_at: datetime
