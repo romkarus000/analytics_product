@@ -88,6 +88,14 @@ export default function ProjectDetailPage() {
           <button
             type="button"
             className="secondary"
+            onClick={() => router.push(`/projects/${projectId}/dashboard`)}
+            disabled={!projectId}
+          >
+            Дашборды
+          </button>
+          <button
+            type="button"
+            className="secondary"
             onClick={() => router.push(`/projects/${projectId}/managers`)}
             disabled={!projectId}
           >
