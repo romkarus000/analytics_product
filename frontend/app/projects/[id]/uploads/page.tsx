@@ -231,9 +231,18 @@ export default function UploadsPage() {
                       {new Date(upload.created_at).toLocaleString("ru-RU")}
                     </p>
                   </div>
-                  <span className={`upload-status status-${upload.status}`}>
-                    {statusLabels[upload.status]}
-                  </span>
+                  <div className="upload-actions">
+                    <span className={`upload-status status-${upload.status}`}>
+                      {statusLabels[upload.status]}
+                    </span>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => router.push(`/uploads/${upload.id}/mapping`)}
+                    >
+                      Разметить
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
