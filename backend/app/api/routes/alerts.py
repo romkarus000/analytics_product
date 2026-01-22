@@ -4,7 +4,7 @@ from datetime import date
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -105,20 +105,25 @@ def upsert_telegram_binding(
     return TelegramBindingPublic.model_validate(binding)
 
 
-@router.delete("/{project_id}/telegram", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{project_id}/telegram",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_telegram_binding(
     project_id: int,
     current_user: CurrentUser,
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     _get_project(project_id, current_user, db)
     binding = db.scalar(
         select(TelegramBinding).where(TelegramBinding.project_id == project_id)
     )
     if not binding:
-        return
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     db.delete(binding)
     db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{project_id}/telegram/test")
@@ -251,17 +256,22 @@ def update_alert_rule(
     )
 
 
-@router.delete("/{project_id}/alerts/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{project_id}/alerts/{rule_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_alert_rule(
     project_id: int,
     rule_id: int,
     current_user: CurrentUser,
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     _get_project(project_id, current_user, db)
     rule = _get_rule(rule_id, project_id, db)
     db.delete(rule)
     db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
