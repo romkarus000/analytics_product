@@ -77,6 +77,22 @@ export default function ProjectDetailPage() {
           >
             Загрузки данных
           </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => router.push(`/projects/${projectId}/products`)}
+            disabled={!projectId}
+          >
+            Продукты
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => router.push(`/projects/${projectId}/managers`)}
+            disabled={!projectId}
+          >
+            Менеджеры
+          </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
         {!project && !error ? <p>Загружаем проект...</p> : null}

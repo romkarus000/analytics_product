@@ -190,6 +190,70 @@ body {
   gap: 12px;
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-card {
+  margin-bottom: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.form-grid {
+  align-items: end;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dimension-list {
+  display: grid;
+  gap: 16px;
+}
+
+.dimension-item {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: grid;
+  gap: 16px;
+}
+
+.dimension-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.alias-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alias-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.alias-form {
+  display: grid;
+  gap: 12px;
+}
+
 .uploads-card {
   width: min(640px, 100%);
 }

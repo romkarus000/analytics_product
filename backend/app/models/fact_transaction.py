@@ -20,10 +20,16 @@ class FactTransaction(Base):
     client_id: Mapped[str] = mapped_column(String(128), nullable=False)
     product_name_raw: Mapped[str] = mapped_column(String(255), nullable=False)
     product_name_norm: Mapped[str] = mapped_column(String(255), nullable=False)
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("dim_products.id", ondelete="SET NULL"), nullable=True
+    )
     product_category: Mapped[str] = mapped_column(String(255), nullable=False)
     product_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     manager_raw: Mapped[str] = mapped_column(String(255), nullable=False)
     manager_norm: Mapped[str] = mapped_column(String(255), nullable=False)
+    manager_id: Mapped[int | None] = mapped_column(
+        ForeignKey("dim_managers.id", ondelete="SET NULL"), nullable=True
+    )
     payment_method: Mapped[str | None] = mapped_column(String(255), nullable=True)
     commission: Mapped[float | None] = mapped_column(Float, nullable=True)
     utm_source: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -34,6 +34,12 @@ from app.services.upload_pipeline import (
     parse_float,
     read_upload_rows,
 )
+from app.services.aliases import (
+    get_manager_name,
+    get_product_name,
+    resolve_manager_alias,
+    resolve_product_alias,
+)
 
 router = APIRouter(prefix="/uploads", tags=["upload-mapping"])
 
@@ -480,11 +486,27 @@ def import_upload(
             manager_header = field_to_header.get("manager", "")
             product_raw = row_payload.get("product_name", {}).get("raw", "")
             manager_raw = row_payload.get("manager", {}).get("raw", "")
-            product_norm = normalize_value(
+            product_key = normalize_value(
                 product_raw, normalization.get(product_header)
             )
-            manager_norm = normalize_value(
+            manager_key = normalize_value(
                 manager_raw, normalization.get(manager_header)
+            )
+            product_id = resolve_product_alias(
+                db, upload.project_id, _stringify(product_key)
+            )
+            manager_id = resolve_manager_alias(
+                db, upload.project_id, _stringify(manager_key)
+            )
+            product_norm = (
+                get_product_name(db, product_id)
+                if product_id
+                else _stringify(product_key)
+            )
+            manager_norm = (
+                get_manager_name(db, manager_id)
+                if manager_id
+                else _stringify(manager_key)
             )
             record = FactTransaction(
                 project_id=upload.project_id,
@@ -499,11 +521,13 @@ def import_upload(
                 ),
                 product_name_raw=_stringify(product_raw),
                 product_name_norm=_stringify(product_norm),
+                product_id=product_id,
                 product_category=_stringify(
                     row_payload.get("product_category", {}).get("normalized", "")
                 ),
                 manager_raw=_stringify(manager_raw),
                 manager_norm=_stringify(manager_norm),
+                manager_id=manager_id,
             )
             db.add(record)
         else:
