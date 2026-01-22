@@ -1,18 +1,29 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserBase(BaseModel):
     email: EmailStr
 
 
-class UserCreate(UserBase):
-    password: str = Field(min_length=8, max_length=128)
+class UserWithPassword(UserBase):
+    password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_length(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("password must be 72 bytes or fewer")
+        return value
 
 
-class UserLogin(UserBase):
-    password: str = Field(min_length=8, max_length=128)
+class UserCreate(UserWithPassword):
+    pass
+
+
+class UserLogin(UserWithPassword):
+    pass
 
 
 class ForgotPasswordRequest(BaseModel):
