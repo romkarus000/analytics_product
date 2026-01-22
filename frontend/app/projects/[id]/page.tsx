@@ -120,6 +120,21 @@ export default function ProjectDetailPage() {
                 Создан: {new Date(project.created_at).toLocaleString("ru-RU")}
               </span>
             </div>
+            <section className="project-section">
+              <div>
+                <h2>Загрузка данных</h2>
+                <p className="muted">
+                  Добавьте CSV или XLSX, чтобы начать собирать аналитику продаж.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push(`/projects/${projectId}/uploads`)}
+                disabled={!projectId}
+              >
+                Перейти к загрузкам
+              </button>
+            </section>
           </div>
         ) : null}
       </div>
