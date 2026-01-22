@@ -13,9 +13,27 @@ from sqlalchemy.orm import Session
 from app.api.deps import CurrentUser
 from app.db.session import get_db
 from app.models.column_mapping import ColumnMapping
+from app.models.fact_marketing_spend import FactMarketingSpend
+from app.models.fact_transaction import FactTransaction
 from app.models.project import Project
-from app.models.upload import Upload, UploadType
-from app.schemas.uploads import ColumnMappingCreate, ColumnMappingPublic, UploadPreview
+from app.models.upload import Upload, UploadStatus, UploadType
+from app.schemas.uploads import (
+    ColumnMappingCreate,
+    ColumnMappingPublic,
+    ImportResult,
+    QualityIssue,
+    QualityReport,
+    QualityStats,
+    UploadPreview,
+)
+from app.services.upload_pipeline import (
+    build_field_mapping,
+    get_row_value,
+    normalize_value,
+    parse_date,
+    parse_float,
+    read_upload_rows,
+)
 
 router = APIRouter(prefix="/uploads", tags=["upload-mapping"])
 
@@ -195,6 +213,169 @@ def _build_mapping_suggestions(
     return suggestions
 
 
+def _get_mapping(upload_id: int, db: Session) -> ColumnMapping:
+    mapping = db.get(ColumnMapping, upload_id)
+    if not mapping:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сначала сохраните маппинг колонок.",
+        )
+    return mapping
+
+
+def _stringify(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _build_quality_report(
+    upload: Upload,
+    mapping: ColumnMapping,
+) -> tuple[QualityReport, list[dict[str, object]]]:
+    headers, rows = read_upload_rows(upload)
+    header_index = {header: index for index, header in enumerate(headers)}
+    field_to_header = build_field_mapping(mapping.mapping_json)
+    normalization = mapping.normalization_json or {}
+    required_fields = REQUIRED_FIELDS[upload.type]
+
+    errors: list[QualityIssue] = []
+    warnings: list[QualityIssue] = []
+    rows_with_errors: set[int] = set()
+    normalized_rows: list[dict[str, object]] = []
+
+    seen_orders: set[str] = set()
+
+    for row_index, row in enumerate(rows, start=2):
+        row_has_error = False
+        row_payload: dict[str, object] = {}
+
+        for field in required_fields:
+            header = field_to_header.get(field, "")
+            raw_value = get_row_value(row, header_index, header) if header else ""
+            normalized_value = normalize_value(raw_value, normalization.get(header))
+            row_payload[field] = {
+                "raw": _stringify(raw_value),
+                "normalized": normalized_value,
+                "header": header,
+            }
+            if normalized_value in ("", None):
+                errors.append(
+                    QualityIssue(
+                        row=row_index,
+                        field=field,
+                        message="Поле обязательно для заполнения.",
+                    )
+                )
+                row_has_error = True
+
+        if upload.type == UploadType.TRANSACTIONS:
+            order_id = row_payload.get("order_id", {}).get("normalized", "")
+            if order_id:
+                order_id_str = _stringify(order_id)
+                if order_id_str in seen_orders:
+                    warnings.append(
+                        QualityIssue(
+                            row=row_index,
+                            field="order_id",
+                            message="Повторяющийся order_id.",
+                        )
+                    )
+                else:
+                    seen_orders.add(order_id_str)
+
+            date_value = parse_date(
+                row_payload.get("date", {}).get("raw", "")
+            )
+            if not date_value:
+                errors.append(
+                    QualityIssue(
+                        row=row_index,
+                        field="date",
+                        message="Дата не распознана.",
+                    )
+                )
+                row_has_error = True
+
+            amount_value = parse_float(
+                row_payload.get("amount", {}).get("raw", "")
+            )
+            if amount_value is None or amount_value <= 0:
+                errors.append(
+                    QualityIssue(
+                        row=row_index,
+                        field="amount",
+                        message="Сумма должна быть больше 0.",
+                    )
+                )
+                row_has_error = True
+
+            operation_value = _stringify(
+                row_payload.get("operation_type", {}).get("normalized", "")
+            ).lower()
+            if operation_value not in {"sale", "refund"}:
+                errors.append(
+                    QualityIssue(
+                        row=row_index,
+                        field="operation_type",
+                        message="Тип операции должен быть sale или refund.",
+                    )
+                )
+                row_has_error = True
+
+            if not row_has_error:
+                row_payload["date_parsed"] = date_value
+                row_payload["amount_parsed"] = amount_value
+                row_payload["operation_type_norm"] = operation_value
+        else:
+            date_value = parse_date(
+                row_payload.get("date", {}).get("raw", "")
+            )
+            if not date_value:
+                errors.append(
+                    QualityIssue(
+                        row=row_index,
+                        field="date",
+                        message="Дата не распознана.",
+                    )
+                )
+                row_has_error = True
+
+            spend_value = parse_float(
+                row_payload.get("spend_amount", {}).get("raw", "")
+            )
+            if spend_value is None or spend_value <= 0:
+                errors.append(
+                    QualityIssue(
+                        row=row_index,
+                        field="spend_amount",
+                        message="Сумма должна быть больше 0.",
+                    )
+                )
+                row_has_error = True
+
+            if not row_has_error:
+                row_payload["date_parsed"] = date_value
+                row_payload["spend_amount_parsed"] = spend_value
+
+        if row_has_error:
+            rows_with_errors.add(row_index)
+        else:
+            normalized_rows.append(row_payload)
+
+    report = QualityReport(
+        errors=errors,
+        warnings=warnings,
+        stats=QualityStats(
+            total_rows=len(rows),
+            valid_rows=len(rows) - len(rows_with_errors),
+            error_count=len(errors),
+            warning_count=len(warnings),
+        ),
+    )
+    return report, normalized_rows
+
+
 @router.get("/{upload_id}/preview", response_model=UploadPreview)
 def preview_upload(
     upload_id: int,
@@ -254,3 +435,86 @@ def save_mapping(
     db.commit()
     db.refresh(mapping)
     return ColumnMappingPublic.model_validate(mapping)
+
+
+@router.post("/{upload_id}/validate", response_model=QualityReport)
+def validate_upload(
+    upload_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> QualityReport:
+    upload = _get_upload(upload_id, current_user, db)
+    mapping = _get_mapping(upload_id, db)
+    report, _ = _build_quality_report(upload, mapping)
+    upload.status = UploadStatus.VALIDATED if not report.errors else UploadStatus.FAILED
+    db.commit()
+    return report
+
+
+@router.post("/{upload_id}/import", response_model=ImportResult)
+def import_upload(
+    upload_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> ImportResult:
+    upload = _get_upload(upload_id, current_user, db)
+    mapping = _get_mapping(upload_id, db)
+    report, normalized_rows = _build_quality_report(upload, mapping)
+    if report.errors:
+        upload.status = UploadStatus.FAILED
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Импорт невозможен из-за ошибок в данных.",
+                "report": report.model_dump(),
+            },
+        )
+
+    inserted = 0
+    normalization = mapping.normalization_json or {}
+    field_to_header = build_field_mapping(mapping.mapping_json)
+    for row_payload in normalized_rows:
+        if upload.type == UploadType.TRANSACTIONS:
+            product_header = field_to_header.get("product_name", "")
+            manager_header = field_to_header.get("manager", "")
+            product_raw = row_payload.get("product_name", {}).get("raw", "")
+            manager_raw = row_payload.get("manager", {}).get("raw", "")
+            product_norm = normalize_value(
+                product_raw, normalization.get(product_header)
+            )
+            manager_norm = normalize_value(
+                manager_raw, normalization.get(manager_header)
+            )
+            record = FactTransaction(
+                project_id=upload.project_id,
+                order_id=_stringify(
+                    row_payload.get("order_id", {}).get("normalized", "")
+                ),
+                date=row_payload.get("date_parsed"),
+                operation_type=row_payload.get("operation_type_norm"),
+                amount=row_payload.get("amount_parsed"),
+                client_id=_stringify(
+                    row_payload.get("client_id", {}).get("normalized", "")
+                ),
+                product_name_raw=_stringify(product_raw),
+                product_name_norm=_stringify(product_norm),
+                product_category=_stringify(
+                    row_payload.get("product_category", {}).get("normalized", "")
+                ),
+                manager_raw=_stringify(manager_raw),
+                manager_norm=_stringify(manager_norm),
+            )
+            db.add(record)
+        else:
+            record = FactMarketingSpend(
+                project_id=upload.project_id,
+                date=row_payload.get("date_parsed"),
+                spend_amount=row_payload.get("spend_amount_parsed"),
+            )
+            db.add(record)
+        inserted += 1
+
+    upload.status = UploadStatus.IMPORTED
+    db.commit()
+    return ImportResult(imported=inserted)

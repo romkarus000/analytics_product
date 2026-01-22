@@ -21,6 +21,27 @@ type NormalizationRule = {
   uppercase: boolean;
 };
 
+type QualityIssue = {
+  row: number;
+  field: string;
+  message: string;
+};
+
+type QualityReport = {
+  errors: QualityIssue[];
+  warnings: QualityIssue[];
+  stats: {
+    total_rows: number;
+    valid_rows: number;
+    error_count: number;
+    warning_count: number;
+  };
+};
+
+type ImportResult = {
+  imported: number;
+};
+
 const REQUIRED_FIELDS: Record<UploadType, string[]> = {
   transactions: [
     "order_id",
@@ -79,8 +100,11 @@ export default function UploadMappingPage() {
   const [uploadType, setUploadType] = useState<UploadType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
 
   useEffect(() => {
     const accessToken = localStorage.getItem("access_token");
@@ -144,6 +168,7 @@ export default function UploadMappingPage() {
   const handleSave = async () => {
     setError("");
     setSuccess("");
+    setQualityReport(null);
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken) {
       router.push("/login");
@@ -186,6 +211,85 @@ export default function UploadMappingPage() {
       setError("Ошибка сети. Попробуйте ещё раз.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleValidate = async () => {
+    setError("");
+    setSuccess("");
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      router.push("/login");
+      return;
+    }
+    if (!uploadId) {
+      setError("Загрузка не найдена.");
+      return;
+    }
+    setIsValidating(true);
+    try {
+      const response = await fetch(`${API_BASE}/uploads/${uploadId}/validate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      const payload = (await response.json()) as QualityReport;
+      if (!response.ok) {
+        setError((payload as { detail?: string }).detail ?? "Не удалось проверить файл.");
+        return;
+      }
+      setQualityReport(payload);
+      setSuccess("Проверка завершена.");
+    } catch (err) {
+      setError("Ошибка сети. Попробуйте ещё раз.");
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setError("");
+    setSuccess("");
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      router.push("/login");
+      return;
+    }
+    if (!uploadId) {
+      setError("Загрузка не найдена.");
+      return;
+    }
+    setIsImporting(true);
+    try {
+      const response = await fetch(`${API_BASE}/uploads/${uploadId}/import`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      const payload = (await response.json()) as ImportResult;
+      if (!response.ok) {
+        const detail = payload as { detail?: { message?: string; report?: QualityReport } };
+        if (detail.detail?.report) {
+          setQualityReport(detail.detail.report);
+        }
+        setError(detail.detail?.message ?? "Импорт не выполнен.");
+        return;
+      }
+      setSuccess(`Импортировано строк: ${payload.imported}.`);
+    } catch (err) {
+      setError("Ошибка сети. Попробуйте ещё раз.");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -360,7 +464,67 @@ export default function UploadMappingPage() {
               <button type="button" onClick={handleSave} disabled={isSubmitting}>
                 {isSubmitting ? "Сохраняем..." : "Сохранить маппинг"}
               </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleValidate}
+                disabled={isValidating}
+              >
+                {isValidating ? "Проверяем..." : "Проверить качество"}
+              </button>
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={isImporting || !qualityReport || qualityReport.errors.length > 0}
+              >
+                {isImporting ? "Импортируем..." : "Импортировать"}
+              </button>
             </div>
+
+            {qualityReport ? (
+              <section className="mapping-section quality-report">
+                <h2>Отчет качества</h2>
+                <div className="quality-stats">
+                  <span>Всего строк: {qualityReport.stats.total_rows}</span>
+                  <span>Без ошибок: {qualityReport.stats.valid_rows}</span>
+                  <span>Ошибок: {qualityReport.stats.error_count}</span>
+                  <span>Предупреждений: {qualityReport.stats.warning_count}</span>
+                </div>
+
+                <div className="quality-grid">
+                  <div>
+                    <h3>Ошибки</h3>
+                    {qualityReport.errors.length === 0 ? (
+                      <p className="muted">Ошибок не найдено.</p>
+                    ) : (
+                      <ul className="quality-list">
+                        {qualityReport.errors.map((issue, index) => (
+                          <li key={`error-${index}`}>
+                            Строка {issue.row}: {FIELD_LABELS[issue.field] ?? issue.field} —{" "}
+                            {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <h3>Предупреждения</h3>
+                    {qualityReport.warnings.length === 0 ? (
+                      <p className="muted">Предупреждений нет.</p>
+                    ) : (
+                      <ul className="quality-list">
+                        {qualityReport.warnings.map((issue, index) => (
+                          <li key={`warning-${index}`}>
+                            Строка {issue.row}: {FIELD_LABELS[issue.field] ?? issue.field} —{" "}
+                            {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </>
         ) : null}
       </div>
