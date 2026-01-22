@@ -39,6 +39,23 @@ def _ensure_project(
     return project
 
 
+def _parse_upload_type(raw_value: str) -> UploadType:
+    try:
+        return UploadType(raw_value)
+    except ValueError:
+        normalized = raw_value.strip().lower()
+        for upload_type in UploadType:
+            if (
+                upload_type.name.lower() == normalized
+                or upload_type.value.lower() == normalized
+            ):
+                return upload_type
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="Неверный тип загрузки.",
+    )
+
+
 @router.get("/{project_id}/uploads", response_model=list[UploadPublic])
 def list_uploads(
     project_id: int,
@@ -63,10 +80,11 @@ async def create_upload(
     project_id: int,
     current_user: CurrentUser,
     file: UploadFile = File(...),
-    upload_type: UploadType = Form(..., alias="type"),
+    upload_type: str = Form(..., alias="type"),
     db: Session = Depends(get_db),
 ) -> UploadPublic:
     _ensure_project(project_id, current_user, db)
+    resolved_upload_type = _parse_upload_type(upload_type)
 
     filename = file.filename or ""
     extension = Path(filename).suffix.lower()
@@ -107,7 +125,7 @@ async def create_upload(
 
     upload = Upload(
         project_id=project_id,
-        type=upload_type,
+        type=resolved_upload_type,
         status=UploadStatus.UPLOADED,
         file_path=str(stored_path),
         original_filename=filename,
