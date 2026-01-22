@@ -5,6 +5,7 @@ from app.models.dim_product import DimProduct
 from app.models.dim_product_alias import DimProductAlias
 from app.models.fact_marketing_spend import FactMarketingSpend
 from app.models.fact_transaction import FactTransaction
+from app.models.insight import Insight
 from app.models.metric_definition import MetricDefinition
 from app.models.project import Project
 from app.models.upload import Upload
@@ -18,6 +19,7 @@ __all__ = [
     "DimProductAlias",
     "FactMarketingSpend",
     "FactTransaction",
+    "Insight",
     "MetricDefinition",
     "Project",
     "Upload",

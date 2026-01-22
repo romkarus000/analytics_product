@@ -34,6 +34,7 @@ from app.services.upload_pipeline import (
     parse_float,
     read_upload_rows,
 )
+from app.services.insights import generate_insights_for_project
 from app.services.aliases import (
     get_manager_name,
     get_product_name,
@@ -541,4 +542,9 @@ def import_upload(
 
     upload.status = UploadStatus.IMPORTED
     db.commit()
+    try:
+        generate_insights_for_project(db, upload.project_id)
+        db.commit()
+    except Exception:
+        db.rollback()
     return ImportResult(imported=inserted)

@@ -45,6 +45,17 @@ type Manager = {
   canonical_name: string;
 };
 
+type Insight = {
+  id: number;
+  project_id: number;
+  metric_key: string;
+  period_from: string;
+  period_to: string;
+  text: string;
+  evidence_json: Record<string, unknown>;
+  created_at: string;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const params = useParams();
@@ -57,6 +68,7 @@ export default function DashboardPage() {
   const [spend, setSpend] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [productCategory, setProductCategory] = useState("");
@@ -65,6 +77,16 @@ export default function DashboardPage() {
   const [productType, setProductType] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  const insightByMetric = useMemo(() => {
+    const map: Record<string, Insight> = {};
+    insights.forEach((item) => {
+      if (!map[item.metric_key]) {
+        map[item.metric_key] = item;
+      }
+    });
+    return map;
+  }, [insights]);
 
   const categories = useMemo(() => {
     const items = Array.from(new Set(products.map((item) => item.category)));
@@ -215,6 +237,35 @@ export default function DashboardPage() {
     }
   }, [fromDate, projectId, toDate]);
 
+  const loadInsights = useCallback(async () => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken || !projectId) {
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      if (fromDate) {
+        params.set("from", fromDate);
+      }
+      if (toDate) {
+        params.set("to", toDate);
+      }
+      const response = await fetch(
+        `${API_BASE}/projects/${projectId}/insights?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+      if (!response.ok) {
+        return;
+      }
+      const payload = (await response.json()) as Insight[];
+      setInsights(payload);
+    } catch (err) {
+      // Ignore insights load errors.
+    }
+  }, [fromDate, projectId, toDate]);
+
   useEffect(() => {
     loadDimensions();
   }, [loadDimensions]);
@@ -222,7 +273,8 @@ export default function DashboardPage() {
   useEffect(() => {
     loadDashboard();
     loadSpend();
-  }, [loadDashboard, loadSpend]);
+    loadInsights();
+  }, [loadDashboard, loadInsights, loadSpend]);
 
   const totals = useMemo(() => {
     if (!dashboard) {
@@ -247,6 +299,7 @@ export default function DashboardPage() {
   const handleApply = () => {
     loadDashboard();
     loadSpend();
+    loadInsights();
   };
 
   return (
@@ -363,22 +416,42 @@ export default function DashboardPage() {
                 <span className="metric-value">
                   {totals.gross_sales.toFixed(2)}
                 </span>
+                {insightByMetric.gross_sales ? (
+                  <p className="metric-insight">
+                    {insightByMetric.gross_sales.text}
+                  </p>
+                ) : null}
               </div>
               <div className="metric-card">
                 <span className="metric-label">Refunds</span>
                 <span className="metric-value">
                   {totals.refunds.toFixed(2)}
                 </span>
+                {insightByMetric.refunds ? (
+                  <p className="metric-insight">
+                    {insightByMetric.refunds.text}
+                  </p>
+                ) : null}
               </div>
               <div className="metric-card">
                 <span className="metric-label">Net Revenue</span>
                 <span className="metric-value">
                   {totals.net_revenue.toFixed(2)}
                 </span>
+                {insightByMetric.net_revenue ? (
+                  <p className="metric-insight">
+                    {insightByMetric.net_revenue.text}
+                  </p>
+                ) : null}
               </div>
               <div className="metric-card">
                 <span className="metric-label">Orders</span>
                 <span className="metric-value">{totals.orders}</span>
+                {insightByMetric.orders ? (
+                  <p className="metric-insight">
+                    {insightByMetric.orders.text}
+                  </p>
+                ) : null}
               </div>
             </div>
           </section>
@@ -444,6 +517,29 @@ export default function DashboardPage() {
               </div>
             </section>
           ) : null}
+
+          <section className="card dashboard-section">
+            <h2 className="section-title">Insights</h2>
+            {insights.length ? (
+              <div className="insights-feed">
+                {insights.map((insight) => (
+                  <div key={insight.id} className="insight-card">
+                    <div className="insight-header">
+                      <span className="insight-metric">
+                        {insight.metric_key}
+                      </span>
+                      <span className="insight-period">
+                        {insight.period_from} → {insight.period_to}
+                      </span>
+                    </div>
+                    <p>{insight.text}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Пока нет инсайтов за выбранный период.</p>
+            )}
+          </section>
 
           <section className="card dashboard-section">
             <h2 className="section-title">Динамика по дням</h2>

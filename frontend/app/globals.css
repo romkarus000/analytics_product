@@ -254,6 +254,45 @@ body {
   font-weight: 700;
 }
 
+.metric-insight {
+  margin: 0;
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.insights-feed {
+  display: grid;
+  gap: 12px;
+}
+
+.insight-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+  display: grid;
+  gap: 8px;
+}
+
+.insight-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.insight-metric {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.insight-period {
+  white-space: nowrap;
+}
+
 .breakdown-grid {
   display: grid;
   gap: 16px;
