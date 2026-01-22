@@ -101,6 +101,14 @@ export default function ProjectDetailPage() {
           >
             Менеджеры
           </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => router.push(`/projects/${projectId}/alerts`)}
+            disabled={!projectId}
+          >
+            Алерты
+          </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
         {!project && !error ? <p>Загружаем проект...</p> : null}

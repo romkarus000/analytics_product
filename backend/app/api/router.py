@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.alerts import router as alerts_router
 from app.api.routes.dimensions import router as dimensions_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.insights import router as insights_router
@@ -12,6 +13,7 @@ from app.api.routes.uploads import router as uploads_router
 api_router = APIRouter()
 
 api_router.include_router(auth_router)
+api_router.include_router(alerts_router)
 api_router.include_router(projects_router)
 api_router.include_router(uploads_router)
 api_router.include_router(mappings_router)

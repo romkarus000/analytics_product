@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     upload_dir: str = "uploads"
+    telegram_bot_token: str | None = None
+    telegram_api_base: str = "https://api.telegram.org"
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
