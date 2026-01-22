@@ -15,6 +15,10 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://postgres:postgres@db:5432/analytics"
     redis_url: str = "redis://redis:6379/0"
+    jwt_secret_key: str = "change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

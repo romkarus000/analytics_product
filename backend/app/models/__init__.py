@@ -1,1 +1,3 @@
-# Domain models will be added in future modules.
+from app.models.user import User
+
+__all__ = ["User"]
