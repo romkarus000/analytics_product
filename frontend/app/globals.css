@@ -153,3 +153,31 @@ body {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
 }
+
+.project-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.project-form {
+  display: grid;
+  gap: 16px;
+  margin: 16px 0 8px;
+}
+
+.project-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.project-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.project-meta {
+  display: grid;
+  gap: 12px;
+}
