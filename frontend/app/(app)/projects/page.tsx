@@ -42,6 +42,13 @@ export default function ProjectsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
+  const selectedProject = useMemo(() => {
+    if (!data || !selectedProjectId) {
+      return null;
+    }
+    return data.projects.find((project) => String(project.id) === selectedProjectId) ?? null;
+  }, [data, selectedProjectId]);
+
   const isEmpty = Boolean(data && data.projects.length === 0);
   const headerPrimaryVariant: "primary" | "secondary" =
     !selectedProject && !isEmpty ? "primary" : "secondary";
@@ -90,13 +97,6 @@ export default function ProjectsPage() {
       }
     }
   }, [loadProjects]);
-
-  const selectedProject = useMemo(() => {
-    if (!data || !selectedProjectId) {
-      return null;
-    }
-    return data.projects.find((project) => String(project.id) === selectedProjectId) ?? null;
-  }, [data, selectedProjectId]);
 
   const filteredProjects = useMemo(() => {
     if (!data) return [];
