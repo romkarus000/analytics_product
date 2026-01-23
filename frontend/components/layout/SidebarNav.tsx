@@ -108,15 +108,7 @@ const SidebarNav = () => {
 
   const hasProject = Boolean(selectedProjectId);
   const hasDashboardData = uploads.some((upload) => {
-    const includeValue =
-      upload.include_in_dashboard ??
-      upload.used_in_dashboard ??
-      upload.is_used_in_dashboard ??
-      upload.enabled ??
-      upload.active;
-    const isIncluded =
-      typeof includeValue === "boolean" ? includeValue : upload.status === "imported";
-    return upload.status === "imported" && isIncluded;
+    return upload.status === "imported" && upload.used_in_dashboard;
   });
 
   const handleNavClick = (slug: string) => {

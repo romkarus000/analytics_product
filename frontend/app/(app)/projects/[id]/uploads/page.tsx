@@ -19,7 +19,7 @@ const allowedExtensions = [".csv", ".xlsx"];
 
 const statusLabels: Record<UploadRecord["status"], string> = {
   uploaded: "Загружен",
-  validated: "Проверен",
+  validated: "На проверке",
   imported: "Импортирован",
   failed: "Ошибка",
 };
@@ -27,19 +27,6 @@ const statusLabels: Record<UploadRecord["status"], string> = {
 const typeLabels: Record<UploadRecord["type"], string> = {
   transactions: "Транзакции",
   marketing_spend: "Маркетинг",
-};
-
-const resolveIncludeFlag = (upload: UploadRecord) => {
-  const value =
-    upload.include_in_dashboard ??
-    upload.used_in_dashboard ??
-    upload.is_used_in_dashboard ??
-    upload.enabled ??
-    upload.active;
-  if (typeof value === "boolean") {
-    return value;
-  }
-  return upload.status === "imported";
 };
 
 export default function UploadsPage() {
@@ -52,16 +39,20 @@ export default function UploadsPage() {
   );
 
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
-  const [includeMap, setIncludeMap] = useState<Record<number, boolean>>({});
   const [uploadType, setUploadType] =
     useState<UploadRecord["type"]>("transactions");
   const [file, setFile] = useState<File | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [confirmTarget, setConfirmTarget] = useState<UploadRecord | null>(null);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [activeSourceId, setActiveSourceId] = useState<number | null>(null);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] =
+    useState<UploadRecord | null>(null);
+  const [confirmCleanupOpen, setConfirmCleanupOpen] = useState(false);
 
   const loadUploads = async (accessToken: string) => {
     if (!projectId) return;
@@ -82,12 +73,6 @@ export default function UploadsPage() {
         return;
       }
       setUploads(payload);
-      setIncludeMap(
-        payload.reduce<Record<number, boolean>>((acc, upload) => {
-          acc[upload.id] = resolveIncludeFlag(upload);
-          return acc;
-        }, {}),
-      );
       setError("");
     } catch (err) {
       setError("Ошибка сети. Попробуйте ещё раз.");
@@ -176,8 +161,8 @@ export default function UploadsPage() {
       }
 
       setUploads((prev) => [payload, ...prev]);
-      setIncludeMap((prev) => ({ ...prev, [payload.id]: resolveIncludeFlag(payload) }));
       setFile(null);
+      setFileInputKey((prev) => prev + 1);
       setSuccess("Файл успешно загружен.");
       pushToast("Файл загружен и отправлен на обработку.", "success");
     } catch (err) {
@@ -196,29 +181,158 @@ export default function UploadsPage() {
     );
   }, [search, uploads]);
 
-  const hasDashboardData = uploads.some((upload) => {
-    const isIncluded = includeMap[upload.id] ?? resolveIncludeFlag(upload);
-    return upload.status === "imported" && isIncluded;
-  });
+  const hasDashboardData = uploads.some(
+    (upload) => upload.status === "imported" && upload.used_in_dashboard,
+  );
 
-  const handleToggleInclude = (upload: UploadRecord) => {
-    setIncludeMap((prev) => ({ ...prev, [upload.id]: !prev[upload.id] }));
-    pushToast("Скоро сохраним выбор на сервере.", "info");
-    setConfirmTarget(null);
+  const updateDashboardSource = async (upload: UploadRecord, enable: boolean) => {
+    if (!projectId) {
+      setError("Проект не найден.");
+      return;
+    }
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      router.push("/login");
+      return;
+    }
+    setActiveSourceId(upload.id);
+    try {
+      const response = await fetch(
+        `${API_BASE}/projects/${projectId}/dashboard-sources`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data_type: upload.type,
+            upload_id: enable ? upload.id : null,
+          }),
+        },
+      );
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      const payload = (await response.json()) as { detail?: string };
+      if (!response.ok) {
+        pushToast(payload.detail ?? "Не удалось обновить источник дэшборда.", "error");
+        return;
+      }
+      setUploads((prev) =>
+        prev.map((item) =>
+          item.type === upload.type
+            ? { ...item, used_in_dashboard: enable && item.id === upload.id }
+            : item,
+        ),
+      );
+      pushToast(
+        enable ? "Источник для дэшборда обновлён." : "Источник снят с дэшборда.",
+        "success",
+      );
+    } catch (err) {
+      pushToast("Ошибка сети. Попробуйте ещё раз.", "error");
+    } finally {
+      setActiveSourceId(null);
+    }
+  };
+
+  const handleDeleteUpload = async (upload: UploadRecord) => {
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      router.push("/login");
+      return;
+    }
+    setActiveSourceId(upload.id);
+    try {
+      const response = await fetch(`${API_BASE}/uploads/${upload.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      if (response.status === 409) {
+        const payload = (await response.json()) as { detail?: string };
+        pushToast(payload.detail ?? "Сначала уберите загрузку из дэшборда.", "warning");
+        return;
+      }
+      if (!response.ok) {
+        pushToast("Не удалось удалить загрузку.", "error");
+        return;
+      }
+      setUploads((prev) => prev.filter((item) => item.id !== upload.id));
+      pushToast("Загрузка удалена из списка.", "success");
+    } catch (err) {
+      pushToast("Ошибка сети. Попробуйте ещё раз.", "error");
+    } finally {
+      setActiveSourceId(null);
+      setConfirmDeleteTarget(null);
+    }
+  };
+
+  const handleCleanup = async () => {
+    if (!projectId) {
+      setError("Проект не найден.");
+      return;
+    }
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      router.push("/login");
+      return;
+    }
+    setIsCleaning(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/projects/${projectId}/uploads/cleanup`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ mode: "inactive_only" }),
+        },
+      );
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      if (!response.ok) {
+        pushToast("Не удалось очистить список.", "error");
+        return;
+      }
+      await loadUploads(accessToken);
+      pushToast("Список очищен.", "success");
+    } catch (err) {
+      pushToast("Ошибка сети. Попробуйте ещё раз.", "error");
+    } finally {
+      setIsCleaning(false);
+      setConfirmCleanupOpen(false);
+    }
   };
 
   return (
-    <div className="page">
+    <div className="page uploads-page">
       <section className="page-header">
         <div>
-          <h2 className="section-title">Загрузка данных</h2>
+          <h1 className="section-title">Загрузка данных</h1>
           <p className="helper-text">
-            Что дальше? Загрузите файл, отметьте его для дэшборда и переходите к аналитике.
+            Загрузите CSV/XLSX и разметьте столбцы — метрики появятся автоматически.
           </p>
         </div>
-        <Tooltip content="Включите хотя бы один документ для дэшборда" disabled={hasDashboardData}>
+        <Tooltip content="Сначала импортируйте данные" disabled={hasDashboardData}>
           <Button
-            variant="primary"
+            variant="ghost"
+            size="sm"
             onClick={() => router.push(`/projects/${projectId}/dashboard`)}
             disabled={!hasDashboardData}
           >
@@ -230,13 +344,19 @@ export default function UploadsPage() {
       <Card>
         <form className="grid-2" onSubmit={handleSubmit}>
           <label className="field">
-            Тип данных
+            <span className="field-label">
+              Тип данных
+              <Tooltip content="Выберите тип таблицы для корректной обработки.">
+                <span className="info-icon" aria-hidden>
+                  i
+                </span>
+              </Tooltip>
+            </span>
             <Select
               value={uploadType}
               onChange={(event) =>
                 setUploadType(event.target.value as UploadRecord["type"])
               }
-              helperText="Выберите тип таблицы для корректной обработки."
             >
               <option value="transactions">Транзакции</option>
               <option value="marketing_spend">Маркетинговые расходы</option>
@@ -246,22 +366,37 @@ export default function UploadsPage() {
           <label className="field">
             Файл
             <Input
+              key={fileInputKey}
               type="file"
               accept=".csv,.xlsx"
               onChange={(event) => {
                 const nextFile = event.target.files?.[0] ?? null;
                 setFile(nextFile);
               }}
-              helperText="Форматы: CSV или XLSX. Максимум 10 МБ."
+              helperText="CSV/XLSX • до 10 МБ"
             />
           </label>
 
           <div className="inline-actions">
-            <Button variant="secondary" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Загружаем..." : "Загрузить файл"}
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              disabled={!file || isSubmitting}
+            >
+              {isSubmitting ? "Загружаем..." : "Загрузить"}
             </Button>
-            <Button variant="ghost" type="button" onClick={() => setFile(null)}>
-              Сбросить выбор
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => {
+                setFile(null);
+                setFileInputKey((prev) => prev + 1);
+              }}
+              disabled={!file || isSubmitting}
+            >
+              Сбросить
             </Button>
           </div>
         </form>
@@ -270,16 +405,27 @@ export default function UploadsPage() {
       </Card>
 
       <Card>
-        <div className="page-header">
+        <div className="page-header uploads-history-header">
           <div>
             <h3 className="section-title">История загрузок</h3>
-            <p className="helper-text">Поиск по имени файла и статусу обработки.</p>
+            <p className="helper-text">Последние загрузки и их статусы.</p>
           </div>
-          <Input
-            placeholder="Поиск файла"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+          <div className="uploads-history-tools">
+            <Input
+              placeholder="Поиск файла"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <Button
+              variant="destructive"
+              size="sm"
+              type="button"
+              onClick={() => setConfirmCleanupOpen(true)}
+              disabled={uploads.length === 0 || isLoading}
+            >
+              Очистить список
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -297,8 +443,12 @@ export default function UploadsPage() {
           <div className="empty-state">
             <strong>Пока нет загрузок</strong>
             <span>Загрузите первый файл, чтобы начать анализ.</span>
-            <Button variant="primary" onClick={() => document.querySelector("input[type='file']")?.click()}>
-              Загрузить файл
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => document.querySelector("input[type='file']")?.click()}
+            >
+              Загрузить
             </Button>
           </div>
         ) : null}
@@ -306,7 +456,18 @@ export default function UploadsPage() {
         {filteredUploads.length > 0 ? (
           <div className="card-list">
             {filteredUploads.map((upload) => {
-              const isIncluded = includeMap[upload.id] ?? resolveIncludeFlag(upload);
+              const isSettingSource = activeSourceId === upload.id;
+              const isImported = upload.status === "imported";
+              const statusVariant: "warning" | "success" | "info" | "muted" =
+                upload.status === "failed"
+                  ? "warning"
+                  : upload.status === "imported"
+                    ? "success"
+                    : upload.status === "validated"
+                      ? "info"
+                      : "muted";
+              const mappingLabel =
+                upload.mapping_status === "mapped" ? "Обновить разметку" : "Разметить";
               return (
                 <div key={upload.id} className="row-card">
                   <div className="row-meta">
@@ -315,36 +476,59 @@ export default function UploadsPage() {
                       {typeLabels[upload.type]} · {new Date(upload.created_at).toLocaleString("ru-RU")}
                     </span>
                   </div>
-                  <div className="row-actions">
-                    <Badge variant={upload.status === "failed" ? "warning" : "info"}>
+                  <div className="row-badges">
+                    <Badge variant={statusVariant} className="badge-compact">
                       {statusLabels[upload.status]}
                     </Badge>
-                    {isIncluded ? (
-                      <Badge variant="success">Используется в дэшборде</Badge>
-                    ) : (
-                      <Badge variant="muted">Не используется</Badge>
-                    )}
+                    {upload.used_in_dashboard ? (
+                      <Badge variant="success" className="badge-compact">
+                        В дэшборде
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="row-actions">
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => router.push(`/uploads/${upload.id}/mapping`)}
                     >
-                      Разметить
+                      {mappingLabel}
                     </Button>
-                    {isIncluded ? (
+                    <Tooltip
+                      content={
+                        isImported
+                          ? ""
+                          : "Сначала завершите импорт, чтобы использовать в дэшборде."
+                      }
+                      disabled={isImported}
+                    >
+                      <Button
+                        variant={upload.used_in_dashboard ? "secondary" : "ghost"}
+                        size="sm"
+                        disabled={!isImported || isSettingSource}
+                        onClick={() =>
+                          updateDashboardSource(upload, !upload.used_in_dashboard)
+                        }
+                      >
+                        {upload.used_in_dashboard ? "Убрать" : "Использовать"}
+                      </Button>
+                    </Tooltip>
+                    <Tooltip
+                      content="Сначала уберите загрузку из дэшборда."
+                      disabled={!upload.used_in_dashboard}
+                    >
                       <Button
                         variant="destructive"
-                        onClick={() => setConfirmTarget(upload)}
+                        size="sm"
+                        disabled={upload.used_in_dashboard || isSettingSource}
+                        onClick={() => setConfirmDeleteTarget(upload)}
                       >
-                        Исключить
+                        Удалить
                       </Button>
-                    ) : (
-                      <Button variant="secondary" onClick={() => handleToggleInclude(upload)}>
-                        Включить
-                      </Button>
-                    )}
+                    </Tooltip>
                     <Tooltip content="История и метаданные появятся позже">
-                      <Button variant="ghost" disabled>
-                        Подробнее
+                      <Button variant="ghost" size="sm" disabled>
+                        Подробности
                       </Button>
                     </Tooltip>
                   </div>
@@ -356,30 +540,62 @@ export default function UploadsPage() {
       </Card>
 
       <Dialog
-        open={Boolean(confirmTarget)}
-        title="Исключить из дэшборда?"
-        description="Данные останутся в системе, но не попадут в витрины аналитики."
-        onClose={() => setConfirmTarget(null)}
+        open={Boolean(confirmDeleteTarget)}
+        title="Удалить загрузку?"
+        description="Загрузка исчезнет из истории. Файл останется в системе."
+        onClose={() => setConfirmDeleteTarget(null)}
         footer={
           <>
-            <Button variant="ghost" type="button" onClick={() => setConfirmTarget(null)}>
+            <Button variant="ghost" size="sm" type="button" onClick={() => setConfirmDeleteTarget(null)}>
               Отмена
             </Button>
             <Button
               variant="destructive"
+              size="sm"
               type="button"
-              onClick={() => confirmTarget && handleToggleInclude(confirmTarget)}
+              onClick={() => confirmDeleteTarget && handleDeleteUpload(confirmDeleteTarget)}
             >
-              Исключить
+              Удалить
             </Button>
           </>
         }
       >
-        {confirmTarget ? (
+        {confirmDeleteTarget ? (
           <p>
-            Файл <strong>{confirmTarget.original_filename}</strong> будет исключён из дэшборда.
+            Удалить <strong>{confirmDeleteTarget.original_filename}</strong> из истории загрузок?
           </p>
         ) : null}
+      </Dialog>
+
+      <Dialog
+        open={confirmCleanupOpen}
+        title="Очистить список?"
+        description="Будут удалены только неиспользуемые загрузки."
+        onClose={() => setConfirmCleanupOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => setConfirmCleanupOpen(false)}
+              disabled={isCleaning}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              type="button"
+              onClick={handleCleanup}
+              disabled={isCleaning}
+            >
+              {isCleaning ? "Очищаем..." : "Очистить"}
+            </Button>
+          </>
+        }
+      >
+        <p>Список будет очищен без удаления активных источников дэшборда.</p>
       </Dialog>
     </div>
   );
