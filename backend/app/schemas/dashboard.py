@@ -3,32 +3,34 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
-class DashboardSeriesPoint(BaseModel):
-    date: date
-    gross_sales: float
-    refunds: float
-    net_revenue: float
-    orders: int
+class MetricDelta(BaseModel):
+    wow: float | None = None
+    mom: float | None = None
 
 
-class RevenueBreakdownItem(BaseModel):
-    name: str
-    revenue: float
+class DashboardMetric(BaseModel):
+    key: str
+    title: str
+    value: float | None = None
+    delta: MetricDelta | None = None
+    availability: str
+    missing_fields: list[str] = Field(default_factory=list)
+    breakdowns: dict[str, Any] | None = None
 
 
-class DashboardBreakdowns(BaseModel):
-    top_products_by_revenue: list[RevenueBreakdownItem]
-    top_managers_by_revenue: list[RevenueBreakdownItem]
-    revenue_by_category: list[RevenueBreakdownItem]
-    revenue_by_type: list[RevenueBreakdownItem]
+class DashboardPack(BaseModel):
+    title: str
+    metrics: list[DashboardMetric]
+    breakdowns: dict[str, Any] = Field(default_factory=dict)
+    series: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class DashboardResponse(BaseModel):
     from_date: date | None
     to_date: date | None
     filters: dict[str, Any]
-    series: list[DashboardSeriesPoint]
-    breakdowns: DashboardBreakdowns
+    executive_cards: list[DashboardMetric]
+    packs: dict[str, DashboardPack]

@@ -46,7 +46,8 @@ def seed_data(client: TestClient, project_id: int) -> None:
                     manager_raw="Ann",
                     manager_norm="ANN",
                     payment_method="card",
-                    fee_total=10.0,
+                    fee_1=6.0,
+                    fee_2=4.0,
                 ),
                 FactTransaction(
                     project_id=project_id,
@@ -62,7 +63,8 @@ def seed_data(client: TestClient, project_id: int) -> None:
                     manager_raw="Bob",
                     manager_norm="BOB",
                     payment_method="card",
-                    fee_total=20.0,
+                    fee_1=12.0,
+                    fee_2=8.0,
                 ),
                 FactTransaction(
                     project_id=project_id,
@@ -78,7 +80,8 @@ def seed_data(client: TestClient, project_id: int) -> None:
                     manager_raw="Ann",
                     manager_norm="ANN",
                     payment_method="card",
-                    fee_total=0.0,
+                    fee_1=0.0,
+                    fee_2=0.0,
                 ),
             ]
         )
@@ -106,11 +109,11 @@ def seed_data(client: TestClient, project_id: int) -> None:
         ("orders", 2.0),
         ("buyers", 2.0),
         ("aov", 150.0),
-        ("commissions", 30.0),
+        ("fees_total", 30.0),
         ("net_profit_simple", 220.0),
-        ("commission_share", 30.0 / 300.0),
-        ("spend", 100.0),
-        ("roas", 2.5),
+        ("fee_share", 30.0 / 300.0),
+        ("spend_total", 100.0),
+        ("roas_total", 2.5),
     ],
 )
 def test_metrics_compute(client: TestClient, metric_key: str, expected: float) -> None:
@@ -142,7 +145,7 @@ def test_metrics_availability(client: TestClient) -> None:
     assert response.status_code == 200
     metrics = {metric["metric_key"]: metric for metric in response.json()}
     assert metrics["gross_sales"]["is_available"] is False
-    assert metrics["spend"]["is_available"] is False
+    assert metrics["spend_total"]["is_available"] is False
 
     seed_data(client, project_id)
     response = client.get(
@@ -153,4 +156,4 @@ def test_metrics_availability(client: TestClient) -> None:
     assert response.status_code == 200
     metrics = {metric["metric_key"]: metric for metric in response.json()}
     assert metrics["gross_sales"]["is_available"] is True
-    assert metrics["spend"]["is_available"] is True
+    assert metrics["spend_total"]["is_available"] is True

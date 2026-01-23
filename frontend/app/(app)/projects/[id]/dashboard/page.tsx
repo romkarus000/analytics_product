@@ -13,32 +13,34 @@ import Skeleton from "../../../../../components/ui/Skeleton";
 
 import { useToast } from "../../../../../components/ui/Toast";
 
-type DashboardSeriesPoint = {
-  date: string;
-  gross_sales: number;
-  refunds: number;
-  net_revenue: number;
-  orders: number;
+type MetricDelta = {
+  wow: number | null;
+  mom: number | null;
 };
 
-type RevenueBreakdownItem = {
-  name: string;
-  revenue: number;
+type DashboardMetric = {
+  key: string;
+  title: string;
+  value: number | null;
+  delta?: MetricDelta | null;
+  availability: "available" | "partial" | "unavailable";
+  missing_fields: string[];
+  breakdowns?: Record<string, unknown> | null;
 };
 
-type DashboardBreakdowns = {
-  top_products_by_revenue: RevenueBreakdownItem[];
-  top_managers_by_revenue: RevenueBreakdownItem[];
-  revenue_by_category: RevenueBreakdownItem[];
-  revenue_by_type: RevenueBreakdownItem[];
+type DashboardPack = {
+  title: string;
+  metrics: DashboardMetric[];
+  breakdowns: Record<string, unknown>;
+  series: Array<Record<string, string | number>>;
 };
 
 type DashboardResponse = {
   from_date: string | null;
   to_date: string | null;
   filters: Record<string, string>;
-  series: DashboardSeriesPoint[];
-  breakdowns: DashboardBreakdowns;
+  executive_cards: DashboardMetric[];
+  packs: Record<string, DashboardPack>;
 };
 
 type Product = {
@@ -64,6 +66,19 @@ type Insight = {
   created_at: string;
 };
 
+const TAB_CONFIG = [
+  { key: "executive", label: "Executive" },
+  { key: "profit_pack", label: "Profit" },
+  { key: "sales_pack", label: "Sales" },
+  { key: "retention_pack", label: "Retention" },
+  { key: "team_pack", label: "Team" },
+  { key: "product_pack", label: "Product" },
+  { key: "groups_pack", label: "Groups" },
+  { key: "marketing_pack", label: "Marketing" },
+] as const;
+
+type TabKey = (typeof TAB_CONFIG)[number]["key"];
+
 export default function DashboardPage() {
   const router = useRouter();
   const params = useParams();
@@ -74,7 +89,6 @@ export default function DashboardPage() {
   );
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
-  const [spend, setSpend] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -84,6 +98,8 @@ export default function DashboardPage() {
   const [productName, setProductName] = useState("");
   const [manager, setManager] = useState("");
   const [productType, setProductType] = useState("");
+  const [groupPath, setGroupPath] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<TabKey>("executive");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
@@ -138,8 +154,13 @@ export default function DashboardPage() {
     if (productType) {
       filters.product_type = productType;
     }
+    groupPath.forEach((value, index) => {
+      if (value) {
+        filters[`group_${index + 1}`] = value;
+      }
+    });
     return filters;
-  }, [manager, productCategory, productName, productType]);
+  }, [groupPath, manager, productCategory, productName, productType]);
 
   const loadDashboard = useCallback(async () => {
     const accessToken = localStorage.getItem("access_token");
@@ -220,35 +241,6 @@ export default function DashboardPage() {
     }
   }, [projectId]);
 
-  const loadSpend = useCallback(async () => {
-    const accessToken = localStorage.getItem("access_token");
-    if (!accessToken || !projectId) {
-      return;
-    }
-    try {
-      const params = new URLSearchParams();
-      if (fromDate) {
-        params.set("from", fromDate);
-      }
-      if (toDate) {
-        params.set("to", toDate);
-      }
-      const response = await fetch(
-        `${API_BASE}/projects/${projectId}/metrics/spend?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      );
-      if (!response.ok) {
-        return;
-      }
-      const payload = await response.json();
-      setSpend(payload.value ?? 0);
-    } catch {
-      // Ignore spend errors.
-    }
-  }, [fromDate, projectId, toDate]);
-
   const loadInsights = useCallback(async () => {
     const accessToken = localStorage.getItem("access_token");
     if (!accessToken || !projectId) {
@@ -306,33 +298,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboard();
-    loadSpend();
     loadInsights();
-  }, [loadDashboard, loadInsights, loadSpend]);
-
-  const totals = useMemo(() => {
-    if (!dashboard) {
-      return {
-        gross_sales: 0,
-        refunds: 0,
-        net_revenue: 0,
-        orders: 0,
-      };
-    }
-    return dashboard.series.reduce(
-      (acc, point) => ({
-        gross_sales: acc.gross_sales + point.gross_sales,
-        refunds: acc.refunds + point.refunds,
-        net_revenue: acc.net_revenue + point.net_revenue,
-        orders: acc.orders + point.orders,
-      }),
-      { gross_sales: 0, refunds: 0, net_revenue: 0, orders: 0 },
-    );
-  }, [dashboard]);
+  }, [loadDashboard, loadInsights]);
 
   const handleApply = () => {
     loadDashboard();
-    loadSpend();
     loadInsights();
     pushToast("Фильтры применены.", "success");
   };
@@ -368,12 +338,12 @@ export default function DashboardPage() {
       setProductName("");
       setManager("");
       setProductType("");
+      setGroupPath([]);
       setDashboard(null);
-      setSpend(null);
       setInsights([]);
       setProducts([]);
       setManagers([]);
-      await Promise.all([loadDashboard(), loadSpend(), loadInsights(), loadDimensions()]);
+      await Promise.all([loadDashboard(), loadInsights(), loadDimensions()]);
       pushToast("Данные дашборда очищены.", "success");
     } catch {
       setError("Ошибка сети. Попробуйте ещё раз.");
@@ -391,10 +361,140 @@ export default function DashboardPage() {
     setProductName("");
     setManager("");
     setProductType("");
+    setGroupPath([]);
     loadDashboard();
   };
 
-  const hasNoData = dashboard && dashboard.series.length === 0;
+  const activePack = useMemo(() => {
+    if (!dashboard) {
+      return null;
+    }
+    if (activeTab === "executive") {
+      return {
+        title: "Executive",
+        metrics: dashboard.executive_cards,
+        breakdowns: {},
+        series: dashboard.packs.sales_pack?.series ?? [],
+      } satisfies DashboardPack;
+    }
+    return dashboard.packs[activeTab] ?? null;
+  }, [activeTab, dashboard]);
+
+  const formatValue = (value: number | null) => {
+    if (value === null || Number.isNaN(value)) {
+      return "—";
+    }
+    if (Number.isInteger(value)) {
+      return value.toString();
+    }
+    return value.toFixed(2);
+  };
+
+  const renderDelta = (delta?: MetricDelta | null) => {
+    if (!delta) {
+      return null;
+    }
+    return (
+      <div className="kpi-delta">
+        {delta.wow !== null ? (
+          <span>WoW: {(delta.wow * 100).toFixed(1)}%</span>
+        ) : null}
+        {delta.mom !== null ? (
+          <span>MoM: {(delta.mom * 100).toFixed(1)}%</span>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderAvailability = (metric: DashboardMetric) => {
+    if (metric.availability === "available") {
+      return null;
+    }
+    const label =
+      metric.availability === "partial" ? "Частично" : "Недоступно";
+    return (
+      <div className="availability">
+        <span>{label}</span>
+        {metric.missing_fields.length ? (
+          <span className="helper-text">
+            Добавьте поля: {metric.missing_fields.join(", ")}
+          </span>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderBreakdownTable = (
+    title: string,
+    rows: Array<Record<string, string | number>>,
+    onRowClick?: (row: Record<string, string | number>) => void,
+  ) => {
+    if (!rows.length) {
+      return (
+        <Card key={title} tone="soft">
+          <h4>{title}</h4>
+          <p className="helper-text">Нет данных.</p>
+        </Card>
+      );
+    }
+    const columns = Object.keys(rows[0]);
+    return (
+      <Card key={title} tone="soft">
+        <h4>{title}</h4>
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr
+                  key={`${title}-${index}`}
+                  onClick={
+                    onRowClick ? () => onRowClick(row) : undefined
+                  }
+                  className={onRowClick ? "clickable" : undefined}
+                >
+                  {columns.map((column) => (
+                    <td key={`${title}-${index}-${column}`}>
+                      {typeof row[column] === "number"
+                        ? formatValue(row[column] as number)
+                        : (row[column] as string)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    );
+  };
+
+  const hasNoData = dashboard && !dashboard.executive_cards.length;
+
+  const handleGroupRowClick = (row: Record<string, string | number>) => {
+    if (!dashboard) {
+      return;
+    }
+    const level = dashboard.packs.groups_pack?.breakdowns?.level as number | undefined;
+    if (!level || level >= 5) {
+      return;
+    }
+    const name = row.name as string | undefined;
+    if (!name || name === "Без значения") {
+      return;
+    }
+    setGroupPath((prev) => [...prev, name]);
+  };
+
+  const handleGroupBreadcrumb = (index: number) => {
+    setGroupPath((prev) => prev.slice(0, index));
+  };
 
   return (
     <div className="page">
@@ -520,101 +620,86 @@ export default function DashboardPage() {
         </Card>
       ) : null}
 
-      {dashboard ? (
+      {dashboard && activePack ? (
         <div className="grid">
           <Card>
-            <h3 className="section-title">Executive</h3>
-            <div className="kpi-grid">
-              <div className="kpi-card">
-                <span className="kpi-label">Gross Sales</span>
-                <span className="kpi-value">{totals.gross_sales.toFixed(2)}</span>
-                {insightByMetric.gross_sales ? (
-                  <p className="helper-text">{insightByMetric.gross_sales.text}</p>
-                ) : null}
-              </div>
-              <div className="kpi-card">
-                <span className="kpi-label">Refunds</span>
-                <span className="kpi-value">{totals.refunds.toFixed(2)}</span>
-                {insightByMetric.refunds ? (
-                  <p className="helper-text">{insightByMetric.refunds.text}</p>
-                ) : null}
-              </div>
-              <div className="kpi-card">
-                <span className="kpi-label">Net Revenue</span>
-                <span className="kpi-value">{totals.net_revenue.toFixed(2)}</span>
-                {insightByMetric.net_revenue ? (
-                  <p className="helper-text">{insightByMetric.net_revenue.text}</p>
-                ) : null}
-              </div>
-              <div className="kpi-card">
-                <span className="kpi-label">Orders</span>
-                <span className="kpi-value">{totals.orders}</span>
-                {insightByMetric.orders ? (
-                  <p className="helper-text">{insightByMetric.orders.text}</p>
-                ) : null}
-              </div>
+            <div className="tabs">
+              {TAB_CONFIG.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={`tab-button ${activeTab === tab.key ? "active" : ""}`}
+                  onClick={() => setActiveTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </Card>
 
           <Card>
-            <h3 className="section-title">Sales</h3>
-            <div className="grid-2">
-              <Card tone="soft">
-                <h4>Топ продуктов по выручке</h4>
-                <div className="grid">
-                  {dashboard.breakdowns.top_products_by_revenue.map((item) => (
-                    <div key={item.name} className="row-card">
-                      <span>{item.name}</span>
-                      <strong>{item.revenue.toFixed(2)}</strong>
-                    </div>
-                  ))}
+            <h3 className="section-title">{activePack.title}</h3>
+            <div className="kpi-grid">
+              {activePack.metrics.map((metric) => (
+                <div key={metric.key} className="kpi-card">
+                  <span className="kpi-label">{metric.title}</span>
+                  <span className="kpi-value">{formatValue(metric.value)}</span>
+                  {renderDelta(metric.delta)}
+                  {renderAvailability(metric)}
+                  {insightByMetric[metric.key] ? (
+                    <p className="helper-text">{insightByMetric[metric.key].text}</p>
+                  ) : null}
                 </div>
-              </Card>
-              <Card tone="soft">
-                <h4>Топ менеджеров по выручке</h4>
-                <div className="grid">
-                  {dashboard.breakdowns.top_managers_by_revenue.map((item) => (
-                    <div key={item.name} className="row-card">
-                      <span>{item.name}</span>
-                      <strong>{item.revenue.toFixed(2)}</strong>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-              <Card tone="soft">
-                <h4>Выручка по категориям</h4>
-                <div className="grid">
-                  {dashboard.breakdowns.revenue_by_category.map((item) => (
-                    <div key={item.name} className="row-card">
-                      <span>{item.name}</span>
-                      <strong>{item.revenue.toFixed(2)}</strong>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-              <Card tone="soft">
-                <h4>Выручка по типам</h4>
-                <div className="grid">
-                  {dashboard.breakdowns.revenue_by_type.map((item) => (
-                    <div key={item.name} className="row-card">
-                      <span>{item.name}</span>
-                      <strong>{item.revenue.toFixed(2)}</strong>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+              ))}
             </div>
           </Card>
 
-          {spend && spend > 0 ? (
+          {activeTab === "groups_pack" ? (
             <Card>
-              <h3 className="section-title">Marketing</h3>
-              <div className="kpi-grid">
-                <div className="kpi-card">
-                  <span className="kpi-label">Spend</span>
-                  <span className="kpi-value">{spend.toFixed(2)}</span>
-                </div>
+              <div className="breadcrumb">
+                <span>Группы:</span>
+                <button
+                  type="button"
+                  className="breadcrumb-link"
+                  onClick={() => setGroupPath([])}
+                >
+                  Все
+                </button>
+                {groupPath.map((value, index) => (
+                  <button
+                    key={`${value}-${index}`}
+                    type="button"
+                    className="breadcrumb-link"
+                    onClick={() => handleGroupBreadcrumb(index + 1)}
+                  >
+                    {value}
+                  </button>
+                ))}
               </div>
+              <p className="helper-text">
+                Нажмите на группу, чтобы перейти глубже по иерархии.
+              </p>
+            </Card>
+          ) : null}
+
+          <div className="grid-2">
+            {Object.entries(activePack.breakdowns)
+              .filter(([, value]) => Array.isArray(value))
+              .map(([key, value]) =>
+                renderBreakdownTable(
+                  key,
+                  value as Array<Record<string, string | number>>,
+                  activeTab === "groups_pack" && key === "revenue_by_group"
+                    ? handleGroupRowClick
+                    : undefined,
+                ),
+              )}
+          </div>
+
+          {activePack.series.length ? (
+            <Card>
+              <h3 className="section-title">Динамика</h3>
+              {renderBreakdownTable("series", activePack.series)}
             </Card>
           ) : null}
 
@@ -637,34 +722,6 @@ export default function DashboardPage() {
             ) : (
               <p className="helper-text">Пока нет инсайтов за выбранный период.</p>
             )}
-          </Card>
-
-          <Card>
-            <h3 className="section-title">Динамика по дням</h3>
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Дата</th>
-                    <th>Gross Sales</th>
-                    <th>Refunds</th>
-                    <th>Net Revenue</th>
-                    <th>Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dashboard.series.map((point) => (
-                    <tr key={point.date}>
-                      <td>{new Date(point.date).toLocaleDateString("ru-RU")}</td>
-                      <td>{point.gross_sales.toFixed(2)}</td>
-                      <td>{point.refunds.toFixed(2)}</td>
-                      <td>{point.net_revenue.toFixed(2)}</td>
-                      <td>{point.orders}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </Card>
         </div>
       ) : null}

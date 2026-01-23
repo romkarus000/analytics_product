@@ -15,6 +15,7 @@ class MetricDefinition(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_table: Mapped[str | None] = mapped_column(String(128), nullable=True)
     aggregation: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    formula_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     filters_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     dims_allowed_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     requirements_json: Mapped[str | None] = mapped_column(Text, nullable=True)
