@@ -11,7 +11,7 @@
 }
 
 .header {
-  padding: 28px 32px 12px;
+  padding: 24px 32px 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -19,14 +19,16 @@
 }
 
 .breadcrumb {
-  margin: 0 0 6px;
-  font-size: 13px;
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--color-muted);
 }
 
 .title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
+  font-weight: 600;
   color: var(--color-text);
 }
 
@@ -45,7 +47,7 @@
   }
 
   .header {
-    padding: 20px 20px 12px;
+    padding: 20px 20px 8px;
     flex-direction: column;
     align-items: flex-start;
   }
