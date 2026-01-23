@@ -24,8 +24,12 @@ def read_upload_rows(upload: Upload) -> tuple[list[str], list[list[Any]]]:
     return _read_csv_rows(file_path)
 
 
-def _read_csv_rows(file_path: Path) -> tuple[list[str], list[list[Any]]]:
-    with file_path.open("r", encoding="utf-8-sig", newline="") as handle:
+def _read_csv_rows_with_encoding(
+    file_path: Path,
+    encoding: str,
+    errors: str = "strict",
+) -> tuple[list[str], list[list[Any]]]:
+    with file_path.open("r", encoding=encoding, errors=errors, newline="") as handle:
         sample = handle.read(4096)
         handle.seek(0)
         try:
@@ -36,6 +40,13 @@ def _read_csv_rows(file_path: Path) -> tuple[list[str], list[list[Any]]]:
         headers = next(reader, [])
         rows = [list(row) for row in reader]
     return headers, rows
+
+
+def _read_csv_rows(file_path: Path) -> tuple[list[str], list[list[Any]]]:
+    try:
+        return _read_csv_rows_with_encoding(file_path, "utf-8-sig")
+    except UnicodeDecodeError:
+        return _read_csv_rows_with_encoding(file_path, "cp1251", errors="replace")
 
 
 def _read_xlsx_rows(file_path: Path) -> tuple[list[str], list[list[Any]]]:
