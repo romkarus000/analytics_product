@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -278,12 +278,16 @@ def cleanup_uploads(
     return UploadCleanupResult(deleted=len(uploads))
 
 
-@uploads_router.delete("/{upload_id}", status_code=status.HTTP_204_NO_CONTENT)
+@uploads_router.delete(
+    "/{upload_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+)
 def delete_upload(
     upload_id: int,
     current_user: CurrentUser,
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     upload = db.scalar(
         select(Upload)
         .join(Project, Upload.project_id == Project.id)
@@ -311,4 +315,4 @@ def delete_upload(
         )
     upload.is_deleted = True
     db.commit()
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
