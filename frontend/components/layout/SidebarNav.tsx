@@ -14,8 +14,6 @@ const navItems = [
   { key: "overview", label: "Обзор", slug: "overview" },
   { key: "uploads", label: "Загрузки", slug: "uploads" },
   { key: "dashboard", label: "Дэшборд", slug: "dashboard" },
-  { key: "managers", label: "Менеджеры", slug: "managers" },
-  { key: "products", label: "Продукты", slug: "products" },
   { key: "alerts", label: "Алерты", slug: "alerts" },
 ];
 
@@ -143,8 +141,6 @@ const SidebarNav = () => {
     }
     if (segments.includes("uploads")) return "uploads";
     if (segments.includes("dashboard")) return "dashboard";
-    if (segments.includes("managers")) return "managers";
-    if (segments.includes("products")) return "products";
     if (segments.includes("alerts")) return "alerts";
     if (segments[0] === "projects") return "overview";
     return "projects";
