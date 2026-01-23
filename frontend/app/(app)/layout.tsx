@@ -14,8 +14,6 @@ const sectionLabels: Record<string, string> = {
   projects: "Проекты",
   uploads: "Загрузки",
   dashboard: "Дэшборд",
-  managers: "Менеджеры",
-  products: "Продукты",
   alerts: "Алерты",
 };
 
