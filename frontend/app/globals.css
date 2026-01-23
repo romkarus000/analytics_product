@@ -615,10 +615,6 @@ body {
   font-size: 14px;
 }
 
-.mapping-settings-grid label span {
-  display: block;
-}
-
 .mapping-settings-grid input,
 .mapping-settings-grid select {
   padding: 8px 10px;

@@ -264,15 +264,6 @@ export default function UploadMappingPage() {
     if (!preview || !operationTypeHeader) return [];
     return preview.column_stats?.[operationTypeHeader]?.unique_values ?? [];
   }, [operationTypeHeader, preview]);
-  const normalizedOperationTypeValues = useMemo(() => {
-    return operationTypeValues.map((value) => value?.toString().trim().toLowerCase() ?? "");
-  }, [operationTypeValues]);
-  const operationTypeOptions = useMemo(() => {
-    return operationTypeValues.map((value, index) => ({
-      raw: value,
-      normalized: normalizedOperationTypeValues[index],
-    }));
-  }, [normalizedOperationTypeValues, operationTypeValues]);
 
   const handleSave = async () => {
     setError("");
@@ -636,26 +627,17 @@ export default function UploadMappingPage() {
                   <p className="muted">
                     Колонка: <strong>{operationTypeHeader}</strong>
                   </p>
-                  <p className="muted">
-                    Выберите, какие значения означают оплату (sale) и возврат (refund).
-                    Нормализация берётся из настроек колонки.
-                  </p>
                   <div className="mapping-settings-grid">
-                    {operationTypeOptions.length > 0 ? (
-                      operationTypeOptions.map(({ raw, normalized }) => (
-                        <label key={`operation-value-${raw}`}>
-                          <span>
-                            {raw || "—"}
-                            {normalized && normalized !== raw ? (
-                              <span className="muted"> ({normalized})</span>
-                            ) : null}
-                          </span>
+                    {operationTypeValues.length > 0 ? (
+                      operationTypeValues.map((value) => (
+                        <label key={`operation-value-${value}`}>
+                          {value || "—"}
                           <select
-                            value={operationTypeMapping[normalized || raw] ?? ""}
+                            value={operationTypeMapping[value] ?? ""}
                             onChange={(event) =>
                               setOperationTypeMapping((prev) => ({
                                 ...prev,
-                                [normalized || raw]: event.target.value,
+                                [value]: event.target.value,
                               }))
                             }
                           >

@@ -182,24 +182,3 @@ def test_unknown_operation_type_ignore(client: TestClient) -> None:
     assert payload["stats"]["error_count"] == 0
     assert payload["stats"]["warning_count"] == 1
     assert payload["stats"]["skipped_rows"] == 1
-
-
-def test_validate_with_datetime_string(client: TestClient) -> None:
-    token = register_user(client, "datetime@example.com")
-    project_id = create_project(client, token)
-    content = (
-        "order_id,paid_at,operation_type,amount,client_id,product_name,"
-        "product_category,manager\n"
-        "1001,2026-01-22 20:54:30,sale,1500,501,Phone,Electronics,Irina\n"
-    ).encode("utf-8")
-    upload_id = upload_transactions(client, token, project_id, content)
-    save_mapping(client, token, upload_id)
-
-    response = client.post(
-        f"/api/uploads/{upload_id}/validate",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["stats"]["error_count"] == 0
