@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,11 +12,21 @@ from sqlalchemy.orm import Session
 from app.api.deps import CurrentUser
 from app.core.config import get_settings
 from app.db.session import get_db
+from app.models.column_mapping import ColumnMapping
 from app.models.project import Project
+from app.models.project_dashboard_source import ProjectDashboardSource
 from app.models.upload import Upload, UploadStatus, UploadType
-from app.schemas.uploads import UploadPublic
+from app.schemas.uploads import (
+    DashboardSourcePublic,
+    DashboardSourceUpdate,
+    MappingStatus,
+    UploadCleanupRequest,
+    UploadCleanupResult,
+    UploadPublic,
+)
 
 router = APIRouter(prefix="/projects", tags=["uploads"])
+uploads_router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 ALLOWED_EXTENSIONS = {".csv", ".xlsx"}
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024
@@ -65,10 +77,44 @@ def list_uploads(
     _ensure_project(project_id, current_user, db)
     uploads = db.scalars(
         select(Upload)
-        .where(Upload.project_id == project_id)
+        .where(Upload.project_id == project_id, Upload.is_deleted.is_(False))
         .order_by(Upload.created_at.desc())
     ).all()
-    return [UploadPublic.model_validate(upload) for upload in uploads]
+    upload_ids = [upload.id for upload in uploads]
+    mapped_ids = set()
+    if upload_ids:
+        mapped_ids = set(
+            db.scalars(
+                select(ColumnMapping.upload_id).where(
+                    ColumnMapping.upload_id.in_(upload_ids)
+                )
+            ).all()
+        )
+    sources = db.scalars(
+        select(ProjectDashboardSource).where(
+            ProjectDashboardSource.project_id == project_id
+        )
+    ).all()
+    source_map = {source.data_type: source.upload_id for source in sources}
+
+    return [
+        UploadPublic(
+            id=upload.id,
+            project_id=upload.project_id,
+            type=upload.type,
+            status=upload.status,
+            file_path=upload.file_path,
+            original_filename=upload.original_filename,
+            created_at=upload.created_at,
+            used_in_dashboard=source_map.get(upload.type) == upload.id,
+            mapping_status=(
+                MappingStatus.MAPPED
+                if upload.id in mapped_ids
+                else MappingStatus.UNMAPPED
+            ),
+        )
+        for upload in uploads
+    ]
 
 
 @router.post(
@@ -133,4 +179,136 @@ async def create_upload(
     db.add(upload)
     db.commit()
     db.refresh(upload)
-    return UploadPublic.model_validate(upload)
+    return UploadPublic(
+        id=upload.id,
+        project_id=upload.project_id,
+        type=upload.type,
+        status=upload.status,
+        file_path=upload.file_path,
+        original_filename=upload.original_filename,
+        created_at=upload.created_at,
+        used_in_dashboard=False,
+        mapping_status=MappingStatus.UNMAPPED,
+    )
+
+
+@router.post(
+    "/{project_id}/dashboard-sources",
+    response_model=DashboardSourcePublic,
+)
+def set_dashboard_source(
+    project_id: int,
+    payload: DashboardSourceUpdate,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> DashboardSourcePublic:
+    _ensure_project(project_id, current_user, db)
+
+    if payload.upload_id is not None:
+        upload = db.scalar(
+            select(Upload).where(
+                Upload.id == payload.upload_id,
+                Upload.project_id == project_id,
+                Upload.is_deleted.is_(False),
+            )
+        )
+        if not upload:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Загрузка не найдена.",
+            )
+        if upload.type != payload.data_type:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Тип данных не совпадает с загрузкой.",
+            )
+
+    source = db.scalar(
+        select(ProjectDashboardSource).where(
+            ProjectDashboardSource.project_id == project_id,
+            ProjectDashboardSource.data_type == payload.data_type,
+        )
+    )
+    if source:
+        source.upload_id = payload.upload_id
+    else:
+        source = ProjectDashboardSource(
+            project_id=project_id,
+            data_type=payload.data_type,
+            upload_id=payload.upload_id,
+        )
+        db.add(source)
+    db.commit()
+    db.refresh(source)
+    return DashboardSourcePublic.model_validate(source)
+
+
+@router.post(
+    "/{project_id}/uploads/cleanup",
+    response_model=UploadCleanupResult,
+)
+def cleanup_uploads(
+    project_id: int,
+    payload: UploadCleanupRequest,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> UploadCleanupResult:
+    _ensure_project(project_id, current_user, db)
+    sources = db.scalars(
+        select(ProjectDashboardSource).where(
+            ProjectDashboardSource.project_id == project_id
+        )
+    ).all()
+    active_ids = {source.upload_id for source in sources if source.upload_id}
+
+    query = select(Upload).where(
+        Upload.project_id == project_id,
+        Upload.is_deleted.is_(False),
+    )
+    if active_ids:
+        query = query.where(Upload.id.not_in(active_ids))
+    if payload.older_than_days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=payload.older_than_days)
+        query = query.where(Upload.created_at < cutoff)
+
+    uploads = db.scalars(query).all()
+    for upload in uploads:
+        upload.is_deleted = True
+    db.commit()
+    return UploadCleanupResult(deleted=len(uploads))
+
+
+@uploads_router.delete("/{upload_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_upload(
+    upload_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> None:
+    upload = db.scalar(
+        select(Upload)
+        .join(Project, Upload.project_id == Project.id)
+        .where(
+            Upload.id == upload_id,
+            Upload.is_deleted.is_(False),
+            Project.owner_id == current_user.id,
+        )
+    )
+    if not upload:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Загрузка не найдена.",
+        )
+    source = db.scalar(
+        select(ProjectDashboardSource).where(
+            ProjectDashboardSource.project_id == upload.project_id,
+            ProjectDashboardSource.data_type == upload.type,
+        )
+    )
+    if source and source.upload_id == upload.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Сначала уберите загрузку из дэшборда.",
+        )
+    upload.is_deleted = True
+    db.commit()
+    return None

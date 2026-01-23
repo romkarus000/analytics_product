@@ -11,12 +11,9 @@ export type UploadRecord = {
   project_id: number;
   type: "transactions" | "marketing_spend";
   status: "uploaded" | "validated" | "imported" | "failed";
+  mapping_status: "mapped" | "unmapped";
   original_filename: string;
   created_at: string;
   file_path: string;
-  include_in_dashboard?: boolean;
-  used_in_dashboard?: boolean;
-  is_used_in_dashboard?: boolean;
-  enabled?: boolean;
-  active?: boolean;
+  used_in_dashboard: boolean;
 };
