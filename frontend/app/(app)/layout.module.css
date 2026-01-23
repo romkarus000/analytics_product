@@ -1,0 +1,56 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 28px 32px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.breadcrumb {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  color: var(--color-text);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.content {
+  padding: 0 32px 40px;
+}
+
+@media (max-width: 960px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .header {
+    padding: 20px 20px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .content {
+    padding: 0 20px 32px;
+  }
+}

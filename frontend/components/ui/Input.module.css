@@ -1,0 +1,31 @@
+.wrapper {
+  display: grid;
+  gap: 6px;
+}
+
+.input {
+  width: 100%;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  padding: 10px 14px;
+  font-size: 14px;
+  background: #fff;
+  color: var(--color-text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(63, 55, 201, 0.12);
+}
+
+.input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.helper {
+  font-size: 12px;
+  color: var(--color-muted);
+}
