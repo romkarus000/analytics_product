@@ -50,6 +50,11 @@ type ImportResult = {
   imported: number;
 };
 
+const OPERATION_TYPE_ALIASES: Record<string, string[]> = {
+  sale: ["sale", "оплата", "платеж", "покупка", "payment"],
+  refund: ["refund", "возврат", "возмещение", "return"],
+};
+
 const REQUIRED_FIELDS: Record<UploadType, string[]> = {
   transactions: [
     "paid_at",
@@ -264,6 +269,32 @@ export default function UploadMappingPage() {
     if (!preview || !operationTypeHeader) return [];
     return preview.column_stats?.[operationTypeHeader]?.unique_values ?? [];
   }, [operationTypeHeader, preview]);
+
+  const suggestOperationType = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return "";
+    const match = Object.entries(OPERATION_TYPE_ALIASES).find(([, aliases]) =>
+      aliases.includes(normalized),
+    );
+    return match?.[0] ?? "";
+  };
+
+  useEffect(() => {
+    if (!operationTypeHeader || operationTypeValues.length === 0) return;
+    setOperationTypeMapping((prev) => {
+      let updated = false;
+      const next = { ...prev };
+      operationTypeValues.forEach((value) => {
+        if (next[value]) return;
+        const suggestion = suggestOperationType(value);
+        if (suggestion) {
+          next[value] = suggestion;
+          updated = true;
+        }
+      });
+      return updated ? next : prev;
+    });
+  }, [operationTypeHeader, operationTypeValues]);
 
   const handleSave = async () => {
     setError("");
