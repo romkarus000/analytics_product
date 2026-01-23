@@ -10,6 +10,7 @@ import Dialog from "../../../../../components/ui/Dialog";
 import Input from "../../../../../components/ui/Input";
 import Select from "../../../../../components/ui/Select";
 import Skeleton from "../../../../../components/ui/Skeleton";
+import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
 
@@ -78,6 +79,42 @@ const TAB_CONFIG = [
 ] as const;
 
 type TabKey = (typeof TAB_CONFIG)[number]["key"];
+
+const METRIC_FORMULAS: Record<string, string> = {
+  gross_sales: "Сумма оплат.",
+  refunds: "Сумма возвратов.",
+  net_revenue: "Gross Sales − Refunds.",
+  orders: "Количество заказов.",
+  fees_total: "Сумма комиссий.",
+  fee_share: "Fees Total / Net Revenue.",
+  net_profit_simple: "(Сумма оплат − комиссии) − (сумма возвратов − комиссии).",
+  profit_margin: "Net Profit / Net Revenue.",
+  refund_rate: "Refunds / Gross Sales.",
+  avg_revenue_per_day: "Net Revenue / число дней с продажами.",
+  best_day_revenue: "Максимальная дневная Net Revenue.",
+  worst_day_revenue: "Минимальная дневная Net Revenue.",
+  buyers: "Количество уникальных покупателей (по оплатам).",
+  new_buyers: "Покупатели с первой оплатой в периоде.",
+  repeat_rate: "Повторные покупатели / все покупатели.",
+  returning_revenue: "Net Revenue от покупателей, которые покупали ранее.",
+  revenue_by_manager: "Net Revenue по менеджерам.",
+  orders_by_manager: "Количество заказов по менеджерам.",
+  refund_rate_by_manager: "Refunds / Gross Sales по менеджерам.",
+  revenue_by_product: "Net Revenue по продуктам.",
+  orders_by_product: "Количество заказов по продуктам.",
+  refund_rate_by_product: "Refunds / Gross Sales по продуктам.",
+  revenue_share_by_product: "Доля Net Revenue топ-продуктов.",
+  pareto_80_20: "Доля Net Revenue топ 20% продуктов.",
+  product_transitions: "Количество связок покупок «до → после».",
+  revenue_by_group: "Net Revenue по группам.",
+  refund_rate_by_group: "Refunds / Gross Sales по группам.",
+  top_groups_by_growth: "Количество групп с наибольшим ростом.",
+  holes: "Количество групп с выручкой ранее и нулём сейчас.",
+  spend_total: "Сумма маркетинговых расходов.",
+  roas_total: "Net Revenue / маркетинговые расходы.",
+  roas_by_campaign: "ROAS по кампаниям.",
+  anomaly_spend_zero_revenue: "Кампании с расходом и нулевой выручкой.",
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -640,17 +677,33 @@ export default function DashboardPage() {
           <Card>
             <h3 className="section-title">{activePack.title}</h3>
             <div className="kpi-grid">
-              {activePack.metrics.map((metric) => (
-                <div key={metric.key} className="kpi-card">
-                  <span className="kpi-label">{metric.title}</span>
-                  <span className="kpi-value">{formatValue(metric.value)}</span>
-                  {renderDelta(metric.delta)}
-                  {renderAvailability(metric)}
-                  {insightByMetric[metric.key] ? (
-                    <p className="helper-text">{insightByMetric[metric.key].text}</p>
-                  ) : null}
-                </div>
-              ))}
+              {activePack.metrics.map((metric) => {
+                const formula = METRIC_FORMULAS[metric.key];
+                return (
+                  <div key={metric.key} className="kpi-card">
+                    <span className="kpi-label">
+                      <span>{metric.title}</span>
+                      {formula ? (
+                        <Tooltip content={formula}>
+                          <span
+                            className="kpi-formula"
+                            aria-label={`Формула: ${formula}`}
+                            role="img"
+                          >
+                            ?
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                    </span>
+                    <span className="kpi-value">{formatValue(metric.value)}</span>
+                    {renderDelta(metric.delta)}
+                    {renderAvailability(metric)}
+                    {insightByMetric[metric.key] ? (
+                      <p className="helper-text">{insightByMetric[metric.key].text}</p>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </Card>
 

@@ -160,7 +160,7 @@ DEFAULT_METRICS: list[dict[str, Any]] = [
     {
         "metric_key": "net_profit_simple",
         "title": "Net Profit (Simple)",
-        "description": "NetRevenue − комиссии.",
+        "description": "Прибыль: (сумма оплат − комиссии) − (сумма возвратов − комиссии).",
         "source_table": "derived",
         "formula_type": "formula",
         "dims_allowed": TRANSACTION_DIMS,
@@ -439,6 +439,42 @@ DEFAULT_METRICS: list[dict[str, Any]] = [
 ]
 
 
+def _fees_by_operation(
+    db: Session,
+    project_id: int,
+    from_date: date | None,
+    to_date: date | None,
+    filters: dict[str, Any],
+    dims_allowed: list[str],
+    operation_type: str,
+) -> float:
+    conditions = [FactTransaction.project_id == project_id]
+    if from_date:
+        conditions.append(FactTransaction.date >= from_date)
+    if to_date:
+        conditions.append(FactTransaction.date <= to_date)
+    for key, value in filters.items():
+        if key not in dims_allowed:
+            continue
+        column = getattr(FactTransaction, key, None)
+        if column is None:
+            continue
+        if isinstance(value, list):
+            conditions.append(column.in_(value))
+        else:
+            conditions.append(column == value)
+    conditions.append(FactTransaction.operation_type == operation_type)
+    fee_expr = (
+        func.coalesce(FactTransaction.fee_1, 0.0)
+        + func.coalesce(FactTransaction.fee_2, 0.0)
+        + func.coalesce(FactTransaction.fee_3, 0.0)
+    )
+    value = db.scalar(
+        select(func.coalesce(func.sum(fee_expr), 0.0)).where(*conditions)
+    )
+    return float(value or 0.0)
+
+
 _metric_cache: dict[tuple[Any, ...], float] = {}
 
 
@@ -525,6 +561,8 @@ def compute_metric(
     if not metric:
         raise ValueError("Metric not found")
 
+    dims_allowed = json.loads(metric.dims_allowed_json or "[]")
+
     if metric_key in {
         "net_revenue",
         "refund_rate",
@@ -556,10 +594,13 @@ def compute_metric(
             )
             value = fees_total / gross_sales if gross_sales else 0.0
         elif metric_key == "net_profit_simple":
-            fees_total = compute_metric(
-                db, project_id, "fees_total", from_date, to_date, filters
+            fees_sales = _fees_by_operation(
+                db, project_id, from_date, to_date, filters, dims_allowed, "sale"
             )
-            value = (gross_sales - refunds) - fees_total
+            fees_refunds = _fees_by_operation(
+                db, project_id, from_date, to_date, filters, dims_allowed, "refund"
+            )
+            value = (gross_sales - fees_sales) - (refunds - fees_refunds)
         else:
             spend = compute_metric(
                 db, project_id, "spend_total", from_date, to_date, filters
@@ -570,7 +611,6 @@ def compute_metric(
         _metric_cache[cache_key] = float(value)
         return float(value)
 
-    dims_allowed = json.loads(metric.dims_allowed_json or "[]")
     if metric_key in {"gross_sales", "refunds", "orders", "buyers", "fees_total"}:
         conditions = [FactTransaction.project_id == project_id]
         if from_date:

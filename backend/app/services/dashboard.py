@@ -146,11 +146,24 @@ def _revenue_expression(table: Any) -> Any:
     )
 
 
-def _fees_expression(table: Any) -> Any:
-    return func.sum(
+def _fee_total_column(table: Any) -> Any:
+    return (
         func.coalesce(table.c.fee_1, 0.0)
         + func.coalesce(table.c.fee_2, 0.0)
         + func.coalesce(table.c.fee_3, 0.0)
+    )
+
+
+def _fees_expression(table: Any) -> Any:
+    return func.sum(_fee_total_column(table))
+
+
+def _fees_expression_by_operation(table: Any, operation_type: str) -> Any:
+    return func.sum(
+        case(
+            (table.c.operation_type == operation_type, _fee_total_column(table)),
+            else_=0.0,
+        )
     )
 
 
@@ -231,6 +244,16 @@ def _basic_aggregates(db: Session, table: Any, conditions: list[Any]) -> dict[st
             )
         ).where(*conditions)
     )
+    fees_sales = db.scalar(
+        select(func.coalesce(_fees_expression_by_operation(table, "sale"), 0.0)).where(
+            *conditions
+        )
+    )
+    fees_refunds = db.scalar(
+        select(
+            func.coalesce(_fees_expression_by_operation(table, "refund"), 0.0)
+        ).where(*conditions)
+    )
     fees_total = db.scalar(
         select(func.coalesce(_fees_expression(table), 0.0)).where(*conditions)
     )
@@ -239,6 +262,8 @@ def _basic_aggregates(db: Session, table: Any, conditions: list[Any]) -> dict[st
         "refunds": float(refunds or 0.0),
         "net_revenue": float(net_revenue or 0.0),
         "orders": float(orders or 0),
+        "fees_sales": float(fees_sales or 0.0),
+        "fees_refunds": float(fees_refunds or 0.0),
         "fees_total": float(fees_total or 0.0),
     }
 
@@ -348,24 +373,33 @@ def _group_net_profit(
     dimension: Any,
     limit: int = 5,
 ) -> list[dict[str, Any]]:
-    revenue_expr = _revenue_expression(table)
-    fees_expr = _fees_expression(table)
+    sale_amount_expr = func.sum(
+        case((table.c.operation_type == "sale", table.c.amount), else_=0.0)
+    )
+    refund_amount_expr = func.sum(
+        case((table.c.operation_type == "refund", table.c.amount), else_=0.0)
+    )
+    sale_fees_expr = _fees_expression_by_operation(table, "sale")
+    refund_fees_expr = _fees_expression_by_operation(table, "refund")
     name_expr = func.coalesce(dimension, "Без значения")
     rows = db.execute(
         select(
             name_expr.label("name"),
-            func.coalesce(revenue_expr, 0.0).label("revenue"),
-            func.coalesce(fees_expr, 0.0).label("fees"),
+            func.coalesce(sale_amount_expr, 0.0).label("sales"),
+            func.coalesce(refund_amount_expr, 0.0).label("refunds"),
+            func.coalesce(sale_fees_expr, 0.0).label("sales_fees"),
+            func.coalesce(refund_fees_expr, 0.0).label("refunds_fees"),
         )
         .where(*conditions)
         .group_by(name_expr)
-        .order_by(func.coalesce(revenue_expr, 0.0).desc())
+        .order_by(func.coalesce(sale_amount_expr, 0.0).desc())
         .limit(limit)
     ).all()
     return [
         {
             "name": row.name,
-            "net_profit": float(row.revenue or 0.0) - float(row.fees or 0.0),
+            "net_profit": (float(row.sales or 0.0) - float(row.sales_fees or 0.0))
+            - (float(row.refunds or 0.0) - float(row.refunds_fees or 0.0)),
         }
         for row in rows
     ]
@@ -408,6 +442,8 @@ def get_dashboard_data(
     net_revenue = aggregates["net_revenue"]
     orders = aggregates["orders"]
     fees_total = aggregates["fees_total"]
+    fees_sales = aggregates["fees_sales"]
+    fees_refunds = aggregates["fees_refunds"]
 
     wow_from, wow_to = _period_shift(from_date, to_date, 7)
     mom_from, mom_to = _period_shift(from_date, to_date, 30)
@@ -521,15 +557,23 @@ def get_dashboard_data(
 
     refunds_per_order = _safe_ratio(refunds, orders)
 
-    net_profit_simple = net_revenue - fees_total
+    net_profit_simple = (gross_sales - fees_sales) - (refunds - fees_refunds)
     profit_margin = _safe_ratio(net_profit_simple, net_revenue)
     profit_delta_wow = (
-        _delta(net_profit_simple, wow_aggregates["net_revenue"] - wow_aggregates["fees_total"])
+        _delta(
+            net_profit_simple,
+            (wow_aggregates["gross_sales"] - wow_aggregates["fees_sales"])
+            - (wow_aggregates["refunds"] - wow_aggregates["fees_refunds"]),
+        )
         if wow_aggregates
         else None
     )
     profit_delta_mom = (
-        _delta(net_profit_simple, mom_aggregates["net_revenue"] - mom_aggregates["fees_total"])
+        _delta(
+            net_profit_simple,
+            (mom_aggregates["gross_sales"] - mom_aggregates["fees_sales"])
+            - (mom_aggregates["refunds"] - mom_aggregates["fees_refunds"]),
+        )
         if mom_aggregates
         else None
     )
