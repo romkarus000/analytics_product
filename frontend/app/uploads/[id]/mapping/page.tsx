@@ -627,6 +627,9 @@ export default function UploadMappingPage() {
                   <p className="muted">
                     Колонка: <strong>{operationTypeHeader}</strong>
                   </p>
+                  <p className="muted">
+                    Для каждого значения укажите, это оплата (sale) или возврат (refund).
+                  </p>
                   <div className="mapping-settings-grid">
                     {operationTypeValues.length > 0 ? (
                       operationTypeValues.map((value) => (
@@ -642,8 +645,8 @@ export default function UploadMappingPage() {
                             }
                           >
                             <option value="">Не задано</option>
-                            <option value="sale">sale</option>
-                            <option value="refund">refund</option>
+                            <option value="sale">Оплата (sale)</option>
+                            <option value="refund">Возврат (refund)</option>
                           </select>
                         </label>
                       ))
