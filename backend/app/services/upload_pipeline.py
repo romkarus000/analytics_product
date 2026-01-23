@@ -12,6 +12,11 @@ from app.models.upload import Upload
 
 DATE_FORMATS = (
     "%Y-%m-%d",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M",
+    "%Y-%m-%dT%H:%M:%S.%f",
     "%d.%m.%Y",
     "%d/%m/%Y",
     "%Y/%m/%d",
@@ -109,6 +114,10 @@ def parse_date(value: Any) -> date | None:
         return value.date()
     if isinstance(value, str):
         cleaned = value.strip()
+        try:
+            return datetime.fromisoformat(cleaned).date()
+        except ValueError:
+            pass
         for fmt in DATE_FORMATS:
             try:
                 return datetime.strptime(cleaned, fmt).date()
