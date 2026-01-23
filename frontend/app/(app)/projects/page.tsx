@@ -200,7 +200,7 @@ export default function ProjectsPage() {
         <Card className={styles.emptyCard}>
           <strong>Совпадений не найдено</strong>
           <span>Попробуйте изменить запрос или сбросьте фильтр.</span>
-          <Button variant="secondary" onClick={() => setSearch(\"\")}>
+          <Button variant="secondary" onClick={() => setSearch("")}>
             Сбросить поиск
           </Button>
         </Card>
