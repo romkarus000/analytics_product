@@ -17,6 +17,11 @@ TRANSACTION_DIMS = [
     "product_type",
     "manager_id",
     "payment_method",
+    "group_1",
+    "group_2",
+    "group_3",
+    "group_4",
+    "group_5",
     "utm_source",
     "utm_medium",
     "utm_campaign",
@@ -104,6 +109,15 @@ DEFAULT_METRICS: list[dict[str, Any]] = [
         "description": "Комиссии по заказам.",
         "source_table": "fact_transactions",
         "aggregation": "sum",
+        "dims_allowed": TRANSACTION_DIMS,
+        "requirements": ["fact_transactions"],
+    },
+    {
+        "metric_key": "net_profit_simple",
+        "title": "Чистая прибыль (упрощ.)",
+        "description": "NetRevenue − комиссии.",
+        "source_table": "derived",
+        "aggregation": "formula",
         "dims_allowed": TRANSACTION_DIMS,
         "requirements": ["fact_transactions"],
     },
@@ -225,7 +239,14 @@ def compute_metric(
     if not metric:
         raise ValueError("Metric not found")
 
-    if metric_key in {"net_revenue", "refund_rate", "aov", "commission_share", "roas"}:
+    if metric_key in {
+        "net_revenue",
+        "refund_rate",
+        "aov",
+        "commission_share",
+        "roas",
+        "net_profit_simple",
+    }:
         gross_sales = compute_metric(
             db, project_id, "gross_sales", from_date, to_date, filters
         )
@@ -247,6 +268,11 @@ def compute_metric(
                 db, project_id, "commissions", from_date, to_date, filters
             )
             value = commissions / gross_sales if gross_sales else 0.0
+        elif metric_key == "net_profit_simple":
+            commissions = compute_metric(
+                db, project_id, "commissions", from_date, to_date, filters
+            )
+            value = (gross_sales - refunds) - commissions
         else:
             spend = compute_metric(
                 db, project_id, "spend", from_date, to_date, filters
@@ -285,9 +311,15 @@ def compute_metric(
             )
         elif metric_key == "orders":
             value = db.scalar(
-                select(func.count(func.distinct(FactTransaction.order_id))).where(
-                    *conditions
-                )
+                select(
+                    func.count(
+                        func.distinct(
+                            func.coalesce(
+                                FactTransaction.transaction_id, FactTransaction.order_id
+                            )
+                        )
+                    )
+                ).where(*conditions)
             )
         elif metric_key == "buyers":
             value = db.scalar(
@@ -297,9 +329,16 @@ def compute_metric(
             )
         else:
             value = db.scalar(
-                select(func.coalesce(func.sum(FactTransaction.commission), 0.0)).where(
-                    *conditions
-                )
+                select(
+                    func.coalesce(
+                        func.sum(
+                            func.coalesce(
+                                FactTransaction.fee_total, FactTransaction.commission
+                            )
+                        ),
+                        0.0,
+                    )
+                ).where(*conditions)
             )
     elif metric_key == "spend":
         conditions = [FactMarketingSpend.project_id == project_id]

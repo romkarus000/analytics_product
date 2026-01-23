@@ -46,7 +46,7 @@ def seed_data(client: TestClient, project_id: int) -> None:
                     manager_raw="Ann",
                     manager_norm="ANN",
                     payment_method="card",
-                    commission=10.0,
+                    fee_total=10.0,
                 ),
                 FactTransaction(
                     project_id=project_id,
@@ -62,7 +62,7 @@ def seed_data(client: TestClient, project_id: int) -> None:
                     manager_raw="Bob",
                     manager_norm="BOB",
                     payment_method="card",
-                    commission=20.0,
+                    fee_total=20.0,
                 ),
                 FactTransaction(
                     project_id=project_id,
@@ -78,7 +78,7 @@ def seed_data(client: TestClient, project_id: int) -> None:
                     manager_raw="Ann",
                     manager_norm="ANN",
                     payment_method="card",
-                    commission=0.0,
+                    fee_total=0.0,
                 ),
             ]
         )
@@ -107,6 +107,7 @@ def seed_data(client: TestClient, project_id: int) -> None:
         ("buyers", 2.0),
         ("aov", 150.0),
         ("commissions", 30.0),
+        ("net_profit_simple", 220.0),
         ("commission_share", 30.0 / 300.0),
         ("spend", 100.0),
         ("roas", 2.5),

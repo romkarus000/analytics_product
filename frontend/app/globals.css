@@ -593,6 +593,36 @@ body {
   gap: 12px;
 }
 
+.mapping-settings {
+  display: grid;
+  gap: 16px;
+}
+
+.mapping-settings-group {
+  display: grid;
+  gap: 8px;
+}
+
+.mapping-settings-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.mapping-settings-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.mapping-settings-grid input,
+.mapping-settings-grid select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
 .normalization-options {
   display: grid;
   gap: 6px;

@@ -34,12 +34,16 @@ class UploadPreview(BaseModel):
     sample_rows: list[list[Any]]
     inferred_types: dict[str, str]
     mapping_suggestions: dict[str, str | None]
+    column_stats: dict[str, dict[str, Any]] = Field(default_factory=dict)
     upload_type: UploadType | None = None
+    project_id: int | None = None
 
 
 class ColumnMappingCreate(BaseModel):
     mapping: dict[str, str | None] = Field(default_factory=dict)
     normalization: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    operation_type_mapping: dict[str, str] = Field(default_factory=dict)
+    unknown_operation_policy: str = Field(default="error")
 
 
 class ColumnMappingPublic(BaseModel):
@@ -62,6 +66,7 @@ class QualityStats(BaseModel):
     valid_rows: int
     error_count: int
     warning_count: int
+    skipped_rows: int = 0
 
 
 class QualityReport(BaseModel):

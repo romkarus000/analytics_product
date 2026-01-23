@@ -72,7 +72,9 @@ def _metric_expression(metric_key: str) -> Any:
                 case(
                     (
                         FactTransaction.operation_type == "sale",
-                        FactTransaction.order_id,
+                        func.coalesce(
+                            FactTransaction.transaction_id, FactTransaction.order_id
+                        ),
                     ),
                     else_=None,
                 )
