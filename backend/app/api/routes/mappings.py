@@ -316,6 +316,27 @@ def _normalize_operation_value(value: object) -> str:
     return _stringify(value).strip().lower()
 
 
+def _infer_operation_from_payment_type(value: str) -> str | None:
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    sale_markers = (
+        "оплата",
+        "приход",
+        "поступление",
+        "пополнение",
+        "прибыль",
+        "выплата",
+        "оплачено",
+    )
+    refund_markers = ("возврат", "возвращено", "отклонено", "отмена")
+    if any(marker in normalized for marker in refund_markers):
+        return "refund"
+    if any(marker in normalized for marker in sale_markers):
+        return "sale"
+    return None
+
+
 def _parse_fee_value(raw_value: object) -> tuple[float, bool]:
     parsed = parse_float(raw_value)
     if parsed is None:
@@ -507,6 +528,15 @@ def _build_quality_report(
                     resolved_operation = mapped_value
                 elif operation_value in {"sale", "refund"}:
                     resolved_operation = operation_value
+            if not resolved_operation:
+                payment_type_value = _stringify(
+                    row_payload.get("payment_method", {}).get("normalized", "")
+                )
+                inferred_operation = _infer_operation_from_payment_type(
+                    payment_type_value
+                )
+                if inferred_operation:
+                    resolved_operation = inferred_operation
             if not resolved_operation:
                 message = "Тип операции не распознан."
                 if unknown_operation_policy == "ignore":
