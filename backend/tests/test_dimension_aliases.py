@@ -67,7 +67,7 @@ def save_mapping(client: TestClient, token: str, upload_id: int) -> None:
     payload = {
         "mapping": {
             "order_id": "order_id",
-            "date": "date",
+            "paid_at": "paid_at",
             "operation_type": "operation_type",
             "amount": "amount",
             "client_id": "client_id",
@@ -79,6 +79,8 @@ def save_mapping(client: TestClient, token: str, upload_id: int) -> None:
             "product_name": {"trim": True, "lowercase": True},
             "manager": {"trim": True, "lowercase": True},
         },
+        "operation_type_mapping": {"sale": "sale", "refund": "refund"},
+        "unknown_operation_policy": "error",
     }
     response = client.post(
         f"/api/uploads/{upload_id}/mapping",
@@ -129,7 +131,7 @@ def test_recompute_canonical_after_alias_addition(client: TestClient) -> None:
     token = register_user(client, "recompute@example.com")
     project_id = create_project(client, token)
     content = (
-        "order_id,date,operation_type,amount,client_id,product_name,"
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
         "product_category,manager\n"
         "1001,2024-01-01,sale,1500,501,Legacy,Electronics,Sam\n"
     ).encode("utf-8")

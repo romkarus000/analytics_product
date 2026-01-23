@@ -22,7 +22,7 @@ def create_project(client: TestClient, token: str) -> int:
 
 def upload_transactions(client: TestClient, token: str, project_id: int) -> int:
     content = (
-        "order_id,date,operation_type,amount,client_id,product_name,"
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
         "product_category,manager\n"
         "1001,2024-01-01,sale,1500,501,Phone,Electronics,Irina\n"
     ).encode("utf-8")
@@ -50,7 +50,7 @@ def test_preview_upload(client: TestClient) -> None:
     payload = response.json()
     assert payload["headers"] == [
         "order_id",
-        "date",
+        "paid_at",
         "operation_type",
         "amount",
         "client_id",
@@ -61,6 +61,7 @@ def test_preview_upload(client: TestClient) -> None:
     assert len(payload["sample_rows"]) == 1
     assert "amount" in payload["inferred_types"]
     assert "order_id" in payload["mapping_suggestions"]
+    assert "column_stats" in payload
 
 
 def test_save_mapping(client: TestClient) -> None:
@@ -71,7 +72,7 @@ def test_save_mapping(client: TestClient) -> None:
     payload = {
         "mapping": {
             "order_id": "order_id",
-            "date": "date",
+            "paid_at": "paid_at",
             "operation_type": "operation_type",
             "amount": "amount",
             "client_id": "client_id",
@@ -80,6 +81,8 @@ def test_save_mapping(client: TestClient) -> None:
             "manager": "manager",
         },
         "normalization": {"amount": {"trim": True}},
+        "operation_type_mapping": {"sale": "sale", "refund": "refund"},
+        "unknown_operation_policy": "error",
     }
     response = client.post(
         f"/api/uploads/{upload_id}/mapping",
@@ -90,7 +93,7 @@ def test_save_mapping(client: TestClient) -> None:
     assert response.status_code == 201
     body = response.json()
     assert body["upload_id"] == upload_id
-    assert body["mapping_json"]["amount"] == "amount"
+    assert body["mapping_json"]["mapping"]["amount"] == "amount"
 
 
 def test_reject_mapping_without_required_fields(client: TestClient) -> None:
@@ -101,9 +104,8 @@ def test_reject_mapping_without_required_fields(client: TestClient) -> None:
     payload = {
         "mapping": {
             "order_id": "order_id",
-            "date": "date",
+            "paid_at": "paid_at",
             "operation_type": "operation_type",
-            "amount": "amount",
             "client_id": "client_id",
             "product_name": "product_name",
             "product_category": "product_category",

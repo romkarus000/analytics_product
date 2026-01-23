@@ -11,7 +11,9 @@ type PreviewResponse = {
   sample_rows: Array<Array<string | number | null>>;
   inferred_types: Record<string, string>;
   mapping_suggestions: Record<string, string | null>;
+  column_stats: Record<string, { unique_values: string[]; unique_count: number; sample_count: number }>;
   upload_type?: UploadType;
+  project_id?: number;
 };
 
 type NormalizationRule = {
@@ -34,7 +36,14 @@ type QualityReport = {
     valid_rows: number;
     error_count: number;
     warning_count: number;
+    skipped_rows?: number;
   };
+};
+
+type ProjectSettings = {
+  project_id: number;
+  group_labels: string[];
+  dedup_policy: "keep_all_rows" | "aggregate_by_transaction_id" | "last_row_wins";
 };
 
 type ImportResult = {
@@ -43,41 +52,67 @@ type ImportResult = {
 
 const REQUIRED_FIELDS: Record<UploadType, string[]> = {
   transactions: [
-    "order_id",
-    "date",
+    "paid_at",
     "operation_type",
     "amount",
-    "client_id",
-    "product_name",
-    "product_category",
-    "manager",
   ],
   marketing_spend: ["date", "spend_amount"],
 };
 
 const FIELD_LABELS: Record<string, string> = {
+  transaction_id: "ID транзакции",
   order_id: "ID заказа",
+  paid_at: "Дата платежа",
   date: "Дата",
-  operation_type: "Тип операции",
+  operation_type: "Тип платежа",
   amount: "Сумма",
+  payment_method: "Способ оплаты",
+  group_1: "Группировка 1",
+  group_2: "Группировка 2",
+  group_3: "Группировка 3",
+  group_4: "Группировка 4",
+  group_5: "Группировка 5",
+  fee_1: "Комиссия 1",
+  fee_2: "Комиссия 2",
+  fee_3: "Комиссия 3",
   client_id: "ID клиента",
   product_name: "Название товара",
   product_category: "Категория товара",
   manager: "Менеджер",
+  utm_source: "UTM Source",
+  utm_medium: "UTM Medium",
+  utm_campaign: "UTM Campaign",
+  utm_term: "UTM Term",
+  utm_content: "UTM Content",
   spend_amount: "Маркетинговые расходы",
   ignore: "Игнорировать",
 };
 
 const FIELD_OPTIONS: Record<UploadType, string[]> = {
   transactions: [
+    "transaction_id",
     "order_id",
-    "date",
+    "paid_at",
     "operation_type",
     "amount",
+    "payment_method",
+    "group_1",
+    "group_2",
+    "group_3",
+    "group_4",
+    "group_5",
+    "fee_1",
+    "fee_2",
+    "fee_3",
     "client_id",
     "product_name",
     "product_category",
     "manager",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
     "ignore",
   ],
   marketing_spend: ["date", "spend_amount", "ignore"],
@@ -96,7 +131,20 @@ export default function UploadMappingPage() {
   const [normalization, setNormalization] = useState<
     Record<string, NormalizationRule>
   >({});
+  const [operationTypeMapping, setOperationTypeMapping] = useState<Record<string, string>>({});
+  const [unknownOperationPolicy, setUnknownOperationPolicy] = useState<"error" | "ignore">("error");
   const [uploadType, setUploadType] = useState<UploadType | null>(null);
+  const [projectId, setProjectId] = useState<number | null>(null);
+  const [groupLabels, setGroupLabels] = useState<string[]>([
+    "Группа 1",
+    "Группа 2",
+    "Группа 3",
+    "Группа 4",
+    "Группа 5",
+  ]);
+  const [dedupPolicy, setDedupPolicy] = useState<
+    "keep_all_rows" | "aggregate_by_transaction_id" | "last_row_wins"
+  >("keep_all_rows");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -137,6 +185,9 @@ export default function UploadMappingPage() {
         if (payload.upload_type) {
           setUploadType(payload.upload_type);
         }
+        if (payload.project_id) {
+          setProjectId(payload.project_id);
+        }
         const initialMapping: Record<string, string> = {};
         const initialNormalization: Record<string, NormalizationRule> = {};
         payload.headers.forEach((header) => {
@@ -149,6 +200,7 @@ export default function UploadMappingPage() {
         });
         setMapping(initialMapping);
         setNormalization(initialNormalization);
+        setOperationTypeMapping({});
       } catch (err) {
         setError("Ошибка сети. Попробуйте ещё раз.");
       } finally {
@@ -159,10 +211,68 @@ export default function UploadMappingPage() {
     loadPreview();
   }, [router, uploadId]);
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!projectId) return;
+      const accessToken = localStorage.getItem("access_token");
+      if (!accessToken) {
+        router.push("/login");
+        return;
+      }
+      try {
+        const response = await fetch(`${API_BASE}/projects/${projectId}/settings`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (response.status === 401) {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          router.push("/login");
+          return;
+        }
+        const payload = (await response.json()) as ProjectSettings;
+        if (!response.ok) {
+          return;
+        }
+        setGroupLabels(
+          payload.group_labels.length === 5
+            ? payload.group_labels
+            : [
+                "Группа 1",
+                "Группа 2",
+                "Группа 3",
+                "Группа 4",
+                "Группа 5",
+              ],
+        );
+        setDedupPolicy(payload.dedup_policy);
+      } catch (err) {
+        // ignore settings errors
+      }
+    };
+
+    loadSettings();
+  }, [projectId, router]);
+
   const requiredFields = uploadType ? REQUIRED_FIELDS[uploadType] : [];
   const missingRequired = requiredFields.filter(
     (field) => !Object.values(mapping).includes(field),
   );
+  const operationTypeHeader = useMemo(() => {
+    return Object.entries(mapping).find(([, field]) => field === "operation_type")?.[0];
+  }, [mapping]);
+  const operationTypeValues = useMemo(() => {
+    if (!preview || !operationTypeHeader) return [];
+    return preview.column_stats?.[operationTypeHeader]?.unique_values ?? [];
+  }, [operationTypeHeader, preview]);
+  const normalizedOperationTypeValues = useMemo(() => {
+    return operationTypeValues.map((value) => value?.toString().trim().toLowerCase() ?? "");
+  }, [operationTypeValues]);
+  const operationTypeOptions = useMemo(() => {
+    return operationTypeValues.map((value, index) => ({
+      raw: value,
+      normalized: normalizedOperationTypeValues[index],
+    }));
+  }, [normalizedOperationTypeValues, operationTypeValues]);
 
   const handleSave = async () => {
     setError("");
@@ -183,6 +293,22 @@ export default function UploadMappingPage() {
     }
     setIsSubmitting(true);
     try {
+      const cleanOperationMapping = Object.fromEntries(
+        Object.entries(operationTypeMapping).filter(([, value]) => value),
+      );
+      if (projectId) {
+        await fetch(`${API_BASE}/projects/${projectId}/settings`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            group_labels: groupLabels,
+            dedup_policy: dedupPolicy,
+          }),
+        });
+      }
       const response = await fetch(`${API_BASE}/uploads/${uploadId}/mapping`, {
         method: "POST",
         headers: {
@@ -192,6 +318,8 @@ export default function UploadMappingPage() {
         body: JSON.stringify({
           mapping,
           normalization,
+          operation_type_mapping: cleanOperationMapping,
+          unknown_operation_policy: unknownOperationPolicy,
         }),
       });
       if (response.status === 401) {
@@ -459,6 +587,108 @@ export default function UploadMappingPage() {
               </div>
             </section>
 
+            <section className="mapping-section">
+              <h2>Настройки проекта</h2>
+              <div className="mapping-settings">
+                <div className="mapping-settings-group">
+                  <h3>Подписи уровней группировок</h3>
+                  <div className="mapping-settings-grid">
+                    {groupLabels.map((label, index) => (
+                      <label key={`group-label-${index}`}>
+                        Уровень {index + 1}
+                        <input
+                          type="text"
+                          value={label}
+                          onChange={(event) =>
+                            setGroupLabels((prev) => {
+                              const next = [...prev];
+                              next[index] = event.target.value;
+                              return next;
+                            })
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="mapping-settings-group">
+                  <h3>Политика дедупликации</h3>
+                  <select
+                    value={dedupPolicy}
+                    onChange={(event) =>
+                      setDedupPolicy(event.target.value as ProjectSettings["dedup_policy"])
+                    }
+                  >
+                    <option value="keep_all_rows">Сохранять все строки</option>
+                    <option value="aggregate_by_transaction_id">
+                      Аггрегировать по transaction_id
+                    </option>
+                    <option value="last_row_wins">Последняя строка побеждает</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section className="mapping-section">
+              <h2>Настройка типов платежей</h2>
+              {operationTypeHeader ? (
+                <>
+                  <p className="muted">
+                    Колонка: <strong>{operationTypeHeader}</strong>
+                  </p>
+                  <p className="muted">
+                    Выберите, какие значения означают оплату (sale) и возврат (refund).
+                    Нормализация берётся из настроек колонки.
+                  </p>
+                  <div className="mapping-settings-grid">
+                    {operationTypeOptions.length > 0 ? (
+                      operationTypeOptions.map(({ raw, normalized }) => (
+                        <label key={`operation-value-${raw}`}>
+                          <span>
+                            {raw || "—"}
+                            {normalized && normalized !== raw ? (
+                              <span className="muted"> ({normalized})</span>
+                            ) : null}
+                          </span>
+                          <select
+                            value={operationTypeMapping[normalized || raw] ?? ""}
+                            onChange={(event) =>
+                              setOperationTypeMapping((prev) => ({
+                                ...prev,
+                                [normalized || raw]: event.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">Не задано</option>
+                            <option value="sale">sale</option>
+                            <option value="refund">refund</option>
+                          </select>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="muted">Нет уникальных значений в предпросмотре.</p>
+                    )}
+                  </div>
+                  <label>
+                    Политика для неизвестных значений
+                    <select
+                      value={unknownOperationPolicy}
+                      onChange={(event) =>
+                        setUnknownOperationPolicy(event.target.value as "error" | "ignore")
+                      }
+                    >
+                      <option value="error">Ошибка (не импортировать)</option>
+                      <option value="ignore">Игнорировать (warning + пропуск)</option>
+                    </select>
+                  </label>
+                </>
+              ) : (
+                <p className="muted">
+                  Выберите колонку для поля “Тип платежа”, чтобы настроить значения.
+                </p>
+              )}
+            </section>
+
             <div className="mapping-actions">
               <button type="button" onClick={handleSave} disabled={isSubmitting}>
                 {isSubmitting ? "Сохраняем..." : "Сохранить маппинг"}
@@ -488,6 +718,9 @@ export default function UploadMappingPage() {
                   <span>Без ошибок: {qualityReport.stats.valid_rows}</span>
                   <span>Ошибок: {qualityReport.stats.error_count}</span>
                   <span>Предупреждений: {qualityReport.stats.warning_count}</span>
+                  {qualityReport.stats.skipped_rows !== undefined ? (
+                    <span>Пропущено: {qualityReport.stats.skipped_rows}</span>
+                  ) : null}
                 </div>
 
                 <div className="quality-grid">

@@ -84,7 +84,12 @@ def get_dashboard_data(
     orders_expr = func.count(
         func.distinct(
             case(
-                (FactTransaction.operation_type == "sale", FactTransaction.order_id),
+                (
+                    FactTransaction.operation_type == "sale",
+                    func.coalesce(
+                        FactTransaction.transaction_id, FactTransaction.order_id
+                    ),
+                ),
                 else_=None,
             )
         )

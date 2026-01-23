@@ -10,8 +10,10 @@ from app.models.alert_event import AlertEvent
 from app.models.alert_rule import AlertRule
 from app.models.metric_definition import MetricDefinition
 from app.models.project import Project
+from app.models.project_settings import ProjectSettings
 from app.models.telegram_binding import TelegramBinding
 from app.models.upload import Upload
+from app.models.upload_quarantine import UploadQuarantineRow
 from app.models.user import User
 
 __all__ = [
@@ -27,7 +29,9 @@ __all__ = [
     "Insight",
     "MetricDefinition",
     "Project",
+    "ProjectSettings",
     "TelegramBinding",
     "Upload",
+    "UploadQuarantineRow",
     "User",
 ]

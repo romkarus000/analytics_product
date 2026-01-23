@@ -35,11 +35,18 @@ def upload_transactions(client: TestClient, token: str, project_id: int, content
     return response.json()["id"]
 
 
-def save_mapping(client: TestClient, token: str, upload_id: int) -> None:
+def save_mapping(
+    client: TestClient,
+    token: str,
+    upload_id: int,
+    *,
+    operation_type_mapping: dict[str, str] | None = None,
+    unknown_operation_policy: str = "error",
+) -> None:
     payload = {
         "mapping": {
             "order_id": "order_id",
-            "date": "date",
+            "paid_at": "paid_at",
             "operation_type": "operation_type",
             "amount": "amount",
             "client_id": "client_id",
@@ -51,6 +58,9 @@ def save_mapping(client: TestClient, token: str, upload_id: int) -> None:
             "product_name": {"trim": True, "lowercase": True},
             "manager": {"trim": True, "uppercase": True},
         },
+        "operation_type_mapping": operation_type_mapping
+        or {"sale": "sale", "refund": "refund"},
+        "unknown_operation_policy": unknown_operation_policy,
     }
     response = client.post(
         f"/api/uploads/{upload_id}/mapping",
@@ -64,7 +74,7 @@ def test_validate_report_with_errors(client: TestClient) -> None:
     token = register_user(client, "validator@example.com")
     project_id = create_project(client, token)
     content = (
-        "order_id,date,operation_type,amount,client_id,product_name,"
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
         "product_category,manager\n"
         "1001,2024-01-01,sale,1500,501,Phone,Electronics,Irina\n"
         "1001,2024-13-01,sale,-10,502,Laptop,Electronics,Sergey\n"
@@ -82,15 +92,15 @@ def test_validate_report_with_errors(client: TestClient) -> None:
     payload = response.json()
     assert payload["stats"]["total_rows"] == 3
     assert payload["stats"]["valid_rows"] == 1
-    assert payload["stats"]["error_count"] == 3
-    assert payload["stats"]["warning_count"] == 1
+    assert payload["stats"]["error_count"] == 2
+    assert payload["stats"]["warning_count"] == 2
 
 
 def test_successful_import(client: TestClient) -> None:
     token = register_user(client, "importer@example.com")
     project_id = create_project(client, token)
     content = (
-        "order_id,date,operation_type,amount,client_id,product_name,"
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
         "product_category,manager\n"
         "1001,2024-01-01,sale,1500,501,Phone,Electronics,Irina\n"
         "1002,2024-01-02,refund,500,502,Tablet,Electronics,Anna\n"
@@ -120,3 +130,76 @@ def test_successful_import(client: TestClient) -> None:
         db.close()
 
     assert len(records) == 2
+
+
+def test_validate_with_currency_and_duplicates(client: TestClient) -> None:
+    token = register_user(client, "currency@example.com")
+    project_id = create_project(client, token)
+    content = (
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
+        "product_category,manager\n"
+        "1001,01.02.2024,sale,1 500 ₽,501,Phone,Electronics,Irina\n"
+        "1001,2024/02/01,sale,2 000 ₽,502,Tablet,Electronics,Anna\n"
+    ).encode("utf-8")
+    upload_id = upload_transactions(client, token, project_id, content)
+    save_mapping(client, token, upload_id)
+
+    response = client.post(
+        f"/api/uploads/{upload_id}/validate",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["stats"]["error_count"] == 0
+    assert payload["stats"]["warning_count"] == 1
+
+
+def test_unknown_operation_type_ignore(client: TestClient) -> None:
+    token = register_user(client, "unknown-op@example.com")
+    project_id = create_project(client, token)
+    content = (
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
+        "product_category,manager\n"
+        "1001,2024-01-01,charge,1500,501,Phone,Electronics,Irina\n"
+    ).encode("utf-8")
+    upload_id = upload_transactions(client, token, project_id, content)
+    save_mapping(
+        client,
+        token,
+        upload_id,
+        operation_type_mapping={"sale": "sale", "refund": "refund"},
+        unknown_operation_policy="ignore",
+    )
+
+    response = client.post(
+        f"/api/uploads/{upload_id}/validate",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["stats"]["error_count"] == 0
+    assert payload["stats"]["warning_count"] == 1
+    assert payload["stats"]["skipped_rows"] == 1
+
+
+def test_validate_with_datetime_string(client: TestClient) -> None:
+    token = register_user(client, "datetime@example.com")
+    project_id = create_project(client, token)
+    content = (
+        "order_id,paid_at,operation_type,amount,client_id,product_name,"
+        "product_category,manager\n"
+        "1001,2026-01-22 20:54:30,sale,1500,501,Phone,Electronics,Irina\n"
+    ).encode("utf-8")
+    upload_id = upload_transactions(client, token, project_id, content)
+    save_mapping(client, token, upload_id)
+
+    response = client.post(
+        f"/api/uploads/{upload_id}/validate",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["stats"]["error_count"] == 0
