@@ -151,14 +151,15 @@ def get_dashboard_data(
         .order_by(FactTransaction.product_category.asc())
     ).all()
 
+    product_type_expr = func.coalesce(FactTransaction.product_type, "Без типа")
     revenue_by_type_rows = db.execute(
         select(
-            func.coalesce(FactTransaction.product_type, "Без типа").label("name"),
+            product_type_expr.label("name"),
             func.coalesce(revenue_expr, 0.0).label("revenue"),
         )
         .where(*conditions)
-        .group_by(func.coalesce(FactTransaction.product_type, "Без типа"))
-        .order_by(func.coalesce(FactTransaction.product_type, "Без типа").asc())
+        .group_by(product_type_expr)
+        .order_by(product_type_expr.asc())
     ).all()
 
     breakdowns = {
