@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const [productType, setProductType] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
 
   const insightByMetric = useMemo(() => {
     const map: Record<string, Insight> = {};
@@ -301,6 +302,59 @@ export default function DashboardPage() {
     loadInsights();
   };
 
+  const handleClearDashboard = async () => {
+    if (!projectId) {
+      setError("Проект не найден.");
+      return;
+    }
+    const confirmed = window.confirm(
+      "Удалить все данные дашборда? Это действие нельзя отменить.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) {
+      router.push("/login");
+      return;
+    }
+    setIsClearing(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `${API_BASE}/projects/${projectId}/dashboard`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        router.push("/login");
+        return;
+      }
+      if (!response.ok) {
+        setError("Не удалось очистить дашборд.");
+        return;
+      }
+      setProductCategory("");
+      setProductName("");
+      setManager("");
+      setProductType("");
+      setDashboard(null);
+      setSpend(null);
+      setInsights([]);
+      setProducts([]);
+      setManagers([]);
+      await Promise.all([loadDashboard(), loadSpend(), loadInsights(), loadDimensions()]);
+    } catch (err) {
+      setError("Ошибка сети. Попробуйте ещё раз.");
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <main className="container">
       <div className="page-header">
@@ -398,6 +452,14 @@ export default function DashboardPage() {
         <div className="filter-actions">
           <button type="button" onClick={handleApply}>
             Применить
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleClearDashboard}
+            disabled={isClearing}
+          >
+            {isClearing ? "Очищаем..." : "Очистить"}
           </button>
         </div>
       </section>

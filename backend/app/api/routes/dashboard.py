@@ -4,12 +4,19 @@ import json
 from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import CurrentUser
 from app.db.session import get_db
+from app.models.dim_manager import DimManager
+from app.models.dim_manager_alias import DimManagerAlias
+from app.models.dim_product import DimProduct
+from app.models.dim_product_alias import DimProductAlias
+from app.models.fact_marketing_spend import FactMarketingSpend
+from app.models.fact_transaction import FactTransaction
+from app.models.insight import Insight
 from app.models.project import Project
 from app.schemas.dashboard import DashboardResponse
 from app.services.dashboard import get_dashboard_data
@@ -68,3 +75,33 @@ def get_dashboard(
         series=data["series"],
         breakdowns=data["breakdowns"],
     )
+
+
+@router.delete(
+    "/{project_id}/dashboard",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def clear_dashboard(
+    project_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_project(project_id, current_user, db)
+    db.execute(
+        delete(FactTransaction).where(FactTransaction.project_id == project_id)
+    )
+    db.execute(
+        delete(FactMarketingSpend).where(FactMarketingSpend.project_id == project_id)
+    )
+    db.execute(delete(Insight).where(Insight.project_id == project_id))
+    db.execute(
+        delete(DimProductAlias).where(DimProductAlias.project_id == project_id)
+    )
+    db.execute(delete(DimProduct).where(DimProduct.project_id == project_id))
+    db.execute(
+        delete(DimManagerAlias).where(DimManagerAlias.project_id == project_id)
+    )
+    db.execute(delete(DimManager).where(DimManager.project_id == project_id))
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
