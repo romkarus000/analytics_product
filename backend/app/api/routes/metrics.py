@@ -73,6 +73,7 @@ def list_metrics(
                 description=metric.description,
                 source_table=metric.source_table,
                 aggregation=metric.aggregation,
+                formula_type=metric.formula_type,
                 dims_allowed=dims_allowed,
                 requirements=requirements,
                 version=metric.version,
