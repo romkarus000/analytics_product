@@ -228,6 +228,62 @@ p {
   gap: 8px;
 }
 
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tab-button {
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.kpi-delta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.availability {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
 .kpi-label {
   font-size: 12px;
   color: var(--color-muted);

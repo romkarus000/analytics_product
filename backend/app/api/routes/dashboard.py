@@ -68,13 +68,7 @@ def get_dashboard(
     _get_project(project_id, current_user, db)
     filters_payload = _parse_filters(filters)
     data = get_dashboard_data(db, project_id, from_date, to_date, filters_payload)
-    return DashboardResponse(
-        from_date=from_date,
-        to_date=to_date,
-        filters=filters_payload,
-        series=data["series"],
-        breakdowns=data["breakdowns"],
-    )
+    return DashboardResponse(**data)
 
 
 @router.delete(

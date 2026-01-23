@@ -14,6 +14,7 @@ class MetricDefinitionPublic(BaseModel):
     description: str | None = None
     source_table: str | None = None
     aggregation: str | None = None
+    formula_type: str | None = None
     dims_allowed: list[str] = Field(default_factory=list)
     requirements: list[str] = Field(default_factory=list)
     version: int

@@ -115,23 +115,21 @@ def test_dashboard_breakdowns(client: TestClient) -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["breakdowns"]["top_products_by_revenue"] == [
+    sales_pack = payload["packs"]["sales_pack"]
+    assert sales_pack["breakdowns"]["top_products_by_revenue"] == [
         {"name": "chair", "revenue": 300.0},
         {"name": "laptop", "revenue": 200.0},
         {"name": "phone", "revenue": 50.0},
     ]
-    assert payload["breakdowns"]["top_managers_by_revenue"] == [
+    assert sales_pack["breakdowns"]["top_managers_by_revenue"] == [
         {"name": "ANN", "revenue": 350.0},
         {"name": "BOB", "revenue": 200.0},
     ]
-    assert payload["breakdowns"]["revenue_by_category"] == [
-        {"name": "Electronics", "revenue": 250.0},
-        {"name": "Furniture", "revenue": 300.0},
-    ]
-    assert payload["breakdowns"]["revenue_by_type"] == [
-        {"name": "Gadget", "revenue": 50.0},
-        {"name": "Home", "revenue": 300.0},
-        {"name": "Laptop", "revenue": 200.0},
+    product_pack = payload["packs"]["product_pack"]
+    assert product_pack["breakdowns"]["top_products_by_revenue"] == [
+        {"name": "chair", "revenue": 300.0},
+        {"name": "laptop", "revenue": 200.0},
+        {"name": "phone", "revenue": 50.0},
     ]
 
 
@@ -152,7 +150,8 @@ def test_dashboard_filters(client: TestClient) -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["series"] == [
+    sales_pack = payload["packs"]["sales_pack"]
+    assert sales_pack["series"] == [
         {
             "date": "2024-01-01",
             "gross_sales": 100.0,
@@ -168,9 +167,9 @@ def test_dashboard_filters(client: TestClient) -> None:
             "orders": 0,
         },
     ]
-    assert payload["breakdowns"]["top_products_by_revenue"] == [
+    assert sales_pack["breakdowns"]["top_products_by_revenue"] == [
         {"name": "phone", "revenue": 50.0}
     ]
-    assert payload["breakdowns"]["top_managers_by_revenue"] == [
+    assert sales_pack["breakdowns"]["top_managers_by_revenue"] == [
         {"name": "ANN", "revenue": 50.0}
     ]
