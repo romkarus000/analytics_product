@@ -1,6 +1,6 @@
 """add dashboard sources and soft delete for uploads
 
-Revision ID: 0013_add_dashboard_sources_and_soft_delete
+Revision ID: 0013_add_dashboard_sources
 Revises: 0012_add_metric_formula_type
 Create Date: 2025-09-27 00:00:00.000000
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision = "0013_add_dashboard_sources_and_soft_delete"
+revision = "0013_add_dashboard_sources"
 down_revision = "0012_add_metric_formula_type"
 branch_labels = None
 depends_on = None
