@@ -1,0 +1,16 @@
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid transparent;
+}
+
+.soft {
+  background: var(--color-surface);
+}
+
+.bordered {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
