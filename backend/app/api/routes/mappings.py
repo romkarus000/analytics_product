@@ -528,6 +528,12 @@ def _build_quality_report(
                     resolved_operation = mapped_value
                 elif operation_value in {"sale", "refund"}:
                     resolved_operation = operation_value
+                else:
+                    inferred_from_operation = _infer_operation_from_payment_type(
+                        operation_value
+                    )
+                    if inferred_from_operation:
+                        resolved_operation = inferred_from_operation
             if not resolved_operation:
                 payment_type_value = _stringify(
                     row_payload.get("payment_method", {}).get("normalized", "")
