@@ -7,6 +7,7 @@ Create Date: 2025-09-27 00:00:00.000000
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 revision = "0013_add_dashboard_sources_and_soft_delete"
@@ -21,19 +22,16 @@ def upgrade() -> None:
         sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.false()),
     )
 
+    upload_type_enum = postgresql.ENUM(
+        "transactions",
+        "marketing_spend",
+        name="upload_type",
+        create_type=False,
+    )
     op.create_table(
         "project_dashboard_sources",
         sa.Column("project_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "data_type",
-            sa.Enum(
-                "transactions",
-                "marketing_spend",
-                name="upload_type",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
+        sa.Column("data_type", upload_type_enum, nullable=False),
         sa.Column("upload_id", sa.Integer(), nullable=True),
         sa.Column(
             "updated_at",
