@@ -306,8 +306,35 @@ def _stringify(value: object) -> str:
     return str(value)
 
 
+def _truncate_string(value: str, max_length: int) -> str:
+    if len(value) <= max_length:
+        return value
+    return value[:max_length]
+
+
 def _normalize_operation_value(value: object) -> str:
     return _stringify(value).strip().lower()
+
+
+def _infer_operation_from_payment_type(value: str) -> str | None:
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    sale_markers = (
+        "оплата",
+        "приход",
+        "поступление",
+        "пополнение",
+        "прибыль",
+        "выплата",
+        "оплачено",
+    )
+    refund_markers = ("возврат", "возвращено", "отклонено", "отмена")
+    if any(marker in normalized for marker in refund_markers):
+        return "refund"
+    if any(marker in normalized for marker in sale_markers):
+        return "sale"
+    return None
 
 
 def _parse_fee_value(raw_value: object) -> tuple[float, bool]:
@@ -501,6 +528,15 @@ def _build_quality_report(
                     resolved_operation = mapped_value
                 elif operation_value in {"sale", "refund"}:
                     resolved_operation = operation_value
+            if not resolved_operation:
+                payment_type_value = _stringify(
+                    row_payload.get("payment_method", {}).get("normalized", "")
+                )
+                inferred_operation = _infer_operation_from_payment_type(
+                    payment_type_value
+                )
+                if inferred_operation:
+                    resolved_operation = inferred_operation
             if not resolved_operation:
                 message = "Тип операции не распознан."
                 if unknown_operation_policy == "ignore":
@@ -886,50 +922,109 @@ def import_upload(
             )
             record = FactTransaction(
                 project_id=upload.project_id,
-                transaction_id=_stringify(
-                    row_payload.get("transaction_id", {}).get("normalized", "")
+                transaction_id=_truncate_string(
+                    _stringify(
+                        row_payload.get("transaction_id", {}).get("normalized", "")
+                    ),
+                    128,
                 )
                 or None,
-                order_id=_stringify(
-                    row_payload.get("order_id", {}).get("normalized", "")
+                order_id=_truncate_string(
+                    _stringify(row_payload.get("order_id", {}).get("normalized", "")),
+                    128,
                 )
                 or None,
                 date=parsed_payload.get("paid_at"),
-                operation_type=parsed_payload.get("operation_type"),
+                operation_type=_truncate_string(
+                    _stringify(parsed_payload.get("operation_type")), 32
+                ),
                 amount=parsed_payload.get("amount"),
-                client_id=_stringify(
-                    row_payload.get("client_id", {}).get("normalized", "")
+                client_id=_truncate_string(
+                    _stringify(row_payload.get("client_id", {}).get("normalized", "")),
+                    128,
                 )
                 or None,
-                product_name_raw=_stringify(product_raw) or None,
-                product_name_norm=_stringify(product_norm) or None,
+                product_name_raw=_truncate_string(_stringify(product_raw), 255)
+                or None,
+                product_name_norm=_truncate_string(_stringify(product_norm), 255)
+                or None,
                 product_id=product_id,
-                product_category=_stringify(
-                    row_payload.get("product_category", {}).get("normalized", "")
+                product_category=_truncate_string(
+                    _stringify(
+                        row_payload.get("product_category", {}).get("normalized", "")
+                    ),
+                    255,
                 )
                 or None,
-                manager_raw=_stringify(manager_raw) or None,
-                manager_norm=_stringify(manager_norm) or None,
+                manager_raw=_truncate_string(_stringify(manager_raw), 255) or None,
+                manager_norm=_truncate_string(_stringify(manager_norm), 255) or None,
                 manager_id=manager_id,
-                payment_method=_stringify(
-                    row_payload.get("payment_method", {}).get("normalized", "")
+                payment_method=_truncate_string(
+                    _stringify(
+                        row_payload.get("payment_method", {}).get("normalized", "")
+                    ),
+                    255,
                 )
                 or None,
-                group_1=_stringify(row_payload.get("group_1", {}).get("normalized", "")) or None,
-                group_2=_stringify(row_payload.get("group_2", {}).get("normalized", "")) or None,
-                group_3=_stringify(row_payload.get("group_3", {}).get("normalized", "")) or None,
-                group_4=_stringify(row_payload.get("group_4", {}).get("normalized", "")) or None,
-                group_5=_stringify(row_payload.get("group_5", {}).get("normalized", "")) or None,
+                group_1=_truncate_string(
+                    _stringify(row_payload.get("group_1", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                group_2=_truncate_string(
+                    _stringify(row_payload.get("group_2", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                group_3=_truncate_string(
+                    _stringify(row_payload.get("group_3", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                group_4=_truncate_string(
+                    _stringify(row_payload.get("group_4", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                group_5=_truncate_string(
+                    _stringify(row_payload.get("group_5", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
                 fee_1=parsed_payload.get("fee_1"),
                 fee_2=parsed_payload.get("fee_2"),
                 fee_3=parsed_payload.get("fee_3"),
                 fee_total=parsed_payload.get("fee_total"),
                 commission=parsed_payload.get("fee_total"),
-                utm_source=_stringify(row_payload.get("utm_source", {}).get("normalized", "")) or None,
-                utm_medium=_stringify(row_payload.get("utm_medium", {}).get("normalized", "")) or None,
-                utm_campaign=_stringify(row_payload.get("utm_campaign", {}).get("normalized", "")) or None,
-                utm_term=_stringify(row_payload.get("utm_term", {}).get("normalized", "")) or None,
-                utm_content=_stringify(row_payload.get("utm_content", {}).get("normalized", "")) or None,
+                utm_source=_truncate_string(
+                    _stringify(row_payload.get("utm_source", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                utm_medium=_truncate_string(
+                    _stringify(row_payload.get("utm_medium", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                utm_campaign=_truncate_string(
+                    _stringify(
+                        row_payload.get("utm_campaign", {}).get("normalized", "")
+                    ),
+                    255,
+                )
+                or None,
+                utm_term=_truncate_string(
+                    _stringify(row_payload.get("utm_term", {}).get("normalized", "")),
+                    255,
+                )
+                or None,
+                utm_content=_truncate_string(
+                    _stringify(
+                        row_payload.get("utm_content", {}).get("normalized", "")
+                    ),
+                    255,
+                )
+                or None,
             )
             db.add(record)
         else:
