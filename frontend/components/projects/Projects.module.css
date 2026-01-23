@@ -1,0 +1,135 @@
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.headerText {
+  display: grid;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.searchField {
+  min-width: 240px;
+  max-width: 320px;
+  width: 100%;
+}
+
+.projectGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.projectCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.projectMeta {
+  display: grid;
+  gap: 6px;
+}
+
+.projectName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.projectTimezone {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.projectActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.softButton {
+  font-weight: 500;
+}
+
+.emptyCard {
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  padding: 32px 24px;
+}
+
+.detailGrid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.cardDescription {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.quickActions {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 960px) {
+  .pageHeader {
+    align-items: flex-start;
+  }
+
+  .searchField {
+    max-width: 100%;
+  }
+}

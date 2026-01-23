@@ -10,8 +10,10 @@ import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import Dialog from "../../../components/ui/Dialog";
 import Skeleton from "../../../components/ui/Skeleton";
-import Tooltip from "../../../components/ui/Tooltip";
 import { useToast } from "../../../components/ui/Toast";
+import ProjectHeader from "../../../components/projects/ProjectHeader";
+import ProjectList from "../../../components/projects/ProjectList";
+import styles from "../../../components/projects/Projects.module.css";
 
 const STORAGE_KEY = "selected_project";
 
@@ -40,18 +42,8 @@ export default function ProjectsPage() {
   const [currency, setCurrency] = useState("RUB");
   const [template, setTemplate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-
-  const selectedProject = useMemo(() => {
-    if (!data || !selectedProjectId) {
-      return null;
-    }
-    return data.projects.find((project) => String(project.id) === selectedProjectId) ?? null;
-  }, [data, selectedProjectId]);
 
   const isEmpty = Boolean(data && data.projects.length === 0);
-  const headerPrimaryVariant: "primary" | "secondary" =
-    !selectedProject && !isEmpty ? "primary" : "secondary";
 
   const loadProjects = useCallback(async () => {
     const accessToken = localStorage.getItem("access_token");
@@ -87,24 +79,13 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     loadProjects();
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const payload = JSON.parse(stored) as Project;
-        setSelectedProjectId(payload?.id ? String(payload.id) : null);
-      } catch {
-        setSelectedProjectId(null);
-      }
-    }
   }, [loadProjects]);
 
   const filteredProjects = useMemo(() => {
     if (!data) return [];
     const query = search.trim().toLowerCase();
     if (!query) return data.projects;
-    return data.projects.filter((project) =>
-      project.name.toLowerCase().includes(query),
-    );
+    return data.projects.filter((project) => project.name.toLowerCase().includes(query));
   }, [data, search]);
 
   const handleCreateProject = async (event: FormEvent<HTMLFormElement>) => {
@@ -145,9 +126,7 @@ export default function ProjectsPage() {
         return;
       }
 
-      setData((prev) =>
-        prev ? { ...prev, projects: [payload, ...prev.projects] } : prev,
-      );
+      setData((prev) => (prev ? { ...prev, projects: [payload, ...prev.projects] } : prev));
       setName("");
       setTimezone("Europe/Moscow");
       setCurrency("RUB");
@@ -161,106 +140,79 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleSelectProject = (project: Project) => {
+  const handleOpenProject = (project: Project) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
-    setSelectedProjectId(String(project.id));
     router.push(`/projects/${project.id}`);
+  };
+
+  const handleOpenUploads = (project: Project) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    router.push(`/projects/${project.id}/uploads`);
   };
 
   return (
     <div className="page">
-      <section className="page-header">
-        <div>
-          <h2 className="section-title">Ваши проекты</h2>
-          <p className="helper-text">
-            Что дальше? Выберите проект, чтобы перейти к загрузке данных и настройке
-            дэшборда.
-          </p>
-        </div>
-        <div className="inline-actions">
-          <Button variant={headerPrimaryVariant} onClick={() => setIsModalOpen(true)}>
-            Создать проект
-          </Button>
-          <Button variant="secondary" onClick={loadProjects}>
-            Обновить список
-          </Button>
-        </div>
-      </section>
+      <ProjectHeader
+        title="Проекты"
+        subtitle="Компактный список ваших пространств аналитики. Выберите проект и продолжайте работу."
+        actions={
+          <>
+            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+              Создать проект
+            </Button>
+            <Button variant="secondary" onClick={loadProjects}>
+              Обновить список
+            </Button>
+          </>
+        }
+      />
 
       {error ? <Card tone="bordered">{error}</Card> : null}
 
       {!data && !error ? (
-        <div className="grid">
-          <Skeleton height={96} />
-          <Skeleton height={96} />
+        <div className={styles.projectGrid}>
+          <Skeleton height={120} />
+          <Skeleton height={120} />
+          <Skeleton height={120} />
         </div>
       ) : null}
 
-      {selectedProject ? (
-        <Card>
-          <div className="grid">
-            <div>
-              <h3>{selectedProject.name}</h3>
-              <p className="helper-text">Таймзона: {selectedProject.timezone}</p>
-            </div>
-            <div className="inline-actions">
-              <Button
-                variant="primary"
-                onClick={() => router.push(`/projects/${selectedProject.id}/uploads`)}
-              >
-                Перейти к загрузкам
-              </Button>
-              <Tooltip content="Раздел скоро появится">
-                <Button variant="secondary" disabled>
-                  Настройки проекта
-                </Button>
-              </Tooltip>
-              <Tooltip content="Экспорт будет доступен после настройки">
-                <Button variant="ghost" disabled>
-                  Экспорт
-                </Button>
-              </Tooltip>
+      {data && !isEmpty ? (
+        <div className="grid">
+          <div className={styles.toolbar}>
+            <div className={styles.searchField}>
+              <Input
+                placeholder="Поиск проекта"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
             </div>
           </div>
+          <ProjectList
+            projects={filteredProjects}
+            onOpen={handleOpenProject}
+            onUploads={handleOpenUploads}
+          />
+        </div>
+      ) : null}
+
+      {data && filteredProjects.length === 0 && !isEmpty ? (
+        <Card className={styles.emptyCard}>
+          <strong>Совпадений не найдено</strong>
+          <span>Попробуйте изменить запрос или сбросьте фильтр.</span>
+          <Button variant="secondary" onClick={() => setSearch(\"\")}>
+            Сбросить поиск
+          </Button>
         </Card>
       ) : null}
 
-      {!selectedProject ? (
-        <Card>
-          <div className="grid">
-            <Input
-              placeholder="Поиск проекта"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-            {data && filteredProjects.length > 0 ? (
-              <div className="card-list">
-                {filteredProjects.map((project) => (
-                  <div key={project.id} className="row-card">
-                    <div className="row-meta">
-                      <strong>{project.name}</strong>
-                      <span className="helper-text">Таймзона: {project.timezone}</span>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      onClick={() => handleSelectProject(project)}
-                    >
-                      Открыть
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {data && filteredProjects.length === 0 ? (
-              <div className="empty-state">
-                <strong>Пока нет проектов</strong>
-                <span>Создайте первый проект, чтобы начать аналитику.</span>
-                <Button variant="primary" onClick={() => setIsModalOpen(true)}>
-                  Создать проект
-                </Button>
-              </div>
-            ) : null}
-          </div>
+      {isEmpty ? (
+        <Card className={styles.emptyCard}>
+          <strong>Пока нет проектов</strong>
+          <span>Создайте первый проект, чтобы начать аналитику.</span>
+          <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+            Создать проект
+          </Button>
         </Card>
       ) : null}
 
