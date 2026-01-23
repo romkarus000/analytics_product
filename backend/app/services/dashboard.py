@@ -98,10 +98,10 @@ def get_dashboard_data(
     series_rows = db.execute(
         select(
             FactTransaction.date.label("date"),
-            func.coalesce(gross_sales_expr, 0.0),
-            func.coalesce(refunds_expr, 0.0),
-            func.coalesce(revenue_expr, 0.0),
-            func.coalesce(orders_expr, 0),
+            func.coalesce(gross_sales_expr, 0.0).label("gross_sales"),
+            func.coalesce(refunds_expr, 0.0).label("refunds"),
+            func.coalesce(revenue_expr, 0.0).label("net_revenue"),
+            func.coalesce(orders_expr, 0).label("orders"),
         )
         .where(*conditions)
         .group_by(FactTransaction.date)
