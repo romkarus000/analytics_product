@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { API_BASE } from "../../../lib/api";
 import type { Project } from "../../../lib/types";
 import Card from "../../../../components/ui/Card";
 import Button from "../../../../components/ui/Button";
-import Badge from "../../../../components/ui/Badge";
 import Skeleton from "../../../../components/ui/Skeleton";
 import Tooltip from "../../../../components/ui/Tooltip";
+import ProjectHeader from "../../../../components/projects/ProjectHeader";
+import styles from "../../../../components/projects/Projects.module.css";
 
 const STORAGE_KEY = "selected_project";
 
@@ -65,61 +66,88 @@ export default function ProjectDetailPage() {
     loadProject();
   }, [projectId, router]);
 
+  const lastUpdated = useMemo(() => {
+    if (!project?.created_at) {
+      return "—";
+    }
+    try {
+      return new Date(project.created_at).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return project.created_at;
+    }
+  }, [project?.created_at]);
+
   return (
     <div className="page">
-      <section className="page-header">
-        <div>
-          <h2 className="section-title">Обзор проекта</h2>
-          <p className="helper-text">
-            Что дальше? Проверьте параметры проекта и переходите к загрузке данных.
-          </p>
-        </div>
-        <Button variant="secondary" onClick={() => router.push("/projects")}> 
-          Все проекты
-        </Button>
-      </section>
+      <ProjectHeader
+        title={project?.name ?? "Проект"}
+        subtitle={project ? `ID проекта: ${project.id}` : undefined}
+        status={`Последнее обновление данных: ${lastUpdated}`}
+        actions={
+          <Button variant="secondary" onClick={() => router.push("/projects")}>
+            Все проекты
+          </Button>
+        }
+      />
 
       {error ? <Card tone="bordered">{error}</Card> : null}
 
       {isLoading ? (
         <Card>
-          <Skeleton height={28} width={240} />
-          <Skeleton height={16} width={180} />
-          <Skeleton height={90} />
+          <Skeleton height={24} width={200} />
+          <Skeleton height={16} width={140} />
+          <Skeleton height={80} />
         </Card>
       ) : null}
 
       {project ? (
-        <Card>
-          <div className="grid">
+        <div className={styles.detailGrid}>
+          <Card className="grid">
             <div>
-              <h3>{project.name}</h3>
-              <p className="helper-text">ID проекта: {project.id}</p>
-              <div className="inline-actions">
-                <Badge variant="info">Таймзона: {project.timezone}</Badge>
-                <Badge variant="muted">Валюта: {project.currency ?? "—"}</Badge>
-              </div>
+              <p className={styles.cardTitle}>Кратко о проекте</p>
+              <p className={styles.cardDescription}>
+                Управляйте источниками данных и настройками аналитики без лишних шагов.
+              </p>
             </div>
             <div className="inline-actions">
+              <span className="helper-text">Таймзона: {project.timezone}</span>
+              <span className="helper-text">Валюта: {project.currency ?? "—"}</span>
+            </div>
+          </Card>
+
+          <Card className={styles.quickActions}>
+            <p className={styles.cardTitle}>Quick actions</p>
+            <div className={styles.projectActions}>
               <Button
                 variant="primary"
+                size="sm"
+                className={styles.softButton}
                 onClick={() => router.push(`/projects/${projectId}/uploads`)}
               >
                 Перейти к загрузкам
               </Button>
-              <Tooltip content="Скоро появится настройка прав и ролей">
-                <Button variant="secondary" disabled>
+              <Button
+                variant="secondary"
+                size="sm"
+                className={styles.softButton}
+                onClick={() => router.push(`/projects/${projectId}/dashboard`)}
+              >
+                Открыть дашборд
+              </Button>
+              <Tooltip content="Скоро появятся настройки доступа">
+                <Button variant="ghost" size="sm" className={styles.softButton} disabled>
                   Настройки проекта
                 </Button>
               </Tooltip>
-              <Tooltip content="Экспорт станет доступен после настройки дэшборда">
-                <Button variant="ghost" disabled>
-                  Экспорт
-                </Button>
-              </Tooltip>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       ) : null}
     </div>
   );

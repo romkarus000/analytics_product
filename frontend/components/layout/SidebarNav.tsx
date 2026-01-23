@@ -5,14 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { API_BASE } from "../../app/lib/api";
 import type { Project, UploadRecord } from "../../app/lib/types";
-import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import Tooltip from "../ui/Tooltip";
-import styles from "./SidebarStepper.module.css";
+import styles from "./SidebarNav.module.css";
 
-const steps = [
-  { key: "project", label: "Проект", slug: "projects" },
-  { key: "uploads", label: "Загрузка данных", slug: "uploads" },
+const navItems = [
+  { key: "projects", label: "Проекты", slug: "projects" },
+  { key: "overview", label: "Обзор", slug: "overview" },
+  { key: "uploads", label: "Загрузки", slug: "uploads" },
   { key: "dashboard", label: "Дэшборд", slug: "dashboard" },
   { key: "managers", label: "Менеджеры", slug: "managers" },
   { key: "products", label: "Продукты", slug: "products" },
@@ -21,7 +21,7 @@ const steps = [
 
 const STORAGE_KEY = "selected_project";
 
-const SidebarStepper = () => {
+const SidebarNav = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [project, setProject] = useState<Project | null>(null);
@@ -109,8 +109,6 @@ const SidebarStepper = () => {
   }, [loadProject]);
 
   const hasProject = Boolean(selectedProjectId);
-  const hasUploads = uploads.length > 0;
-  const hasImported = uploads.some((item) => item.status === "imported");
   const hasDashboardData = uploads.some((upload) => {
     const includeValue =
       upload.include_in_dashboard ??
@@ -118,11 +116,12 @@ const SidebarStepper = () => {
       upload.is_used_in_dashboard ??
       upload.enabled ??
       upload.active;
-    const isIncluded = typeof includeValue === "boolean" ? includeValue : upload.status === "imported";
+    const isIncluded =
+      typeof includeValue === "boolean" ? includeValue : upload.status === "imported";
     return upload.status === "imported" && isIncluded;
   });
 
-  const handleStepClick = (slug: string) => {
+  const handleNavClick = (slug: string) => {
     if (slug === "projects") {
       router.push("/projects");
       return;
@@ -130,35 +129,36 @@ const SidebarStepper = () => {
     if (!selectedProjectId) {
       return;
     }
+    if (slug === "overview") {
+      router.push(`/projects/${selectedProjectId}`);
+      return;
+    }
     router.push(`/projects/${selectedProjectId}/${slug}`);
   };
 
-  const activeStep = useMemo(() => {
+  const activeKey = useMemo(() => {
     const segments = pathname.split("/").filter(Boolean);
+    if (segments.length === 1 && segments[0] === "projects") {
+      return "projects";
+    }
     if (segments.includes("uploads")) return "uploads";
     if (segments.includes("dashboard")) return "dashboard";
     if (segments.includes("managers")) return "managers";
     if (segments.includes("products")) return "products";
     if (segments.includes("alerts")) return "alerts";
-    return "project";
+    if (segments[0] === "projects") return "overview";
+    return "projects";
   }, [pathname]);
 
-  const isStepDisabled = (slug: string) => {
-    if (!hasProject && slug !== "projects") {
+  const isItemDisabled = (slug: string) => {
+    if (slug === "projects") return "";
+    if (!hasProject) {
       return "Сначала выберите проект";
     }
-    if (slug === "dashboard" || slug === "alerts") {
-      if (!hasDashboardData) {
-        return "Загрузите данные и включите их в дэшборд";
-      }
+    if ((slug === "dashboard" || slug === "alerts") && !hasDashboardData) {
+      return "Загрузите данные и включите их в дэшборд";
     }
     return "";
-  };
-
-  const stepStatus = (slug: string) => {
-    if (slug === "projects" && hasProject) return "completed";
-    if (slug === "uploads" && hasImported) return "completed";
-    return slug === activeStep ? "active" : "default";
   };
 
   const projectLabel = project?.name ?? "Проект не выбран";
@@ -171,11 +171,7 @@ const SidebarStepper = () => {
           <strong>{projectLabel}</strong>
           <span>{projectTimezone}</span>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setIsOpen((prev) => !prev)}
-        >
+        <Button variant="secondary" size="sm" onClick={() => setIsOpen((prev) => !prev)}>
           Меню
         </Button>
       </div>
@@ -200,29 +196,23 @@ const SidebarStepper = () => {
           </Button>
         </div>
 
-        <nav className={styles.stepper}>
-          {steps.map((step, index) => {
-            const status = stepStatus(step.slug);
-            const disabledReason = isStepDisabled(step.slug);
+        <nav className={styles.nav}>
+          {navItems.map((item) => {
+            const disabledReason = isItemDisabled(item.slug);
             const isDisabled = Boolean(disabledReason);
+            const isActive = activeKey === item.key;
 
             return (
-              <Tooltip key={step.key} content={disabledReason} disabled={!isDisabled}>
+              <Tooltip key={item.key} content={disabledReason} disabled={!isDisabled}>
                 <button
                   type="button"
-                  className={`${styles.step} ${styles[status]} ${
+                  className={`${styles.navItem} ${isActive ? styles.active : ""} ${
                     isDisabled ? styles.disabled : ""
                   }`}
-                  onClick={() => handleStepClick(step.slug)}
+                  onClick={() => handleNavClick(item.slug)}
                   disabled={isDisabled}
                 >
-                  <span className={styles.stepIndex}>
-                    {status === "completed" ? "✓" : index + 1}
-                  </span>
-                  <span className={styles.stepLabel}>{step.label}</span>
-                  {status === "completed" ? (
-                    <Badge variant="success">Готово</Badge>
-                  ) : null}
+                  <span className={styles.navLabel}>{item.label}</span>
                 </button>
               </Tooltip>
             );
@@ -233,4 +223,4 @@ const SidebarStepper = () => {
   );
 };
 
-export default SidebarStepper;
+export default SidebarNav;
