@@ -251,13 +251,14 @@ def _top_revenue_by(
     limit: int = 5,
 ) -> list[dict[str, Any]]:
     revenue_expr = _revenue_expression(table)
+    name_expr = func.coalesce(dimension, "Без значения")
     rows = db.execute(
         select(
-            func.coalesce(dimension, "Без значения").label("name"),
+            name_expr.label("name"),
             func.coalesce(revenue_expr, 0.0).label("revenue"),
         )
         .where(*conditions)
-        .group_by(func.coalesce(dimension, "Без значения"))
+        .group_by(name_expr)
         .order_by(func.coalesce(revenue_expr, 0.0).desc())
         .limit(limit)
     ).all()
@@ -279,14 +280,15 @@ def _group_refund_rate(
     refunds_expr = func.sum(
         case((table.c.operation_type == "refund", table.c.amount), else_=0.0)
     )
+    name_expr = func.coalesce(dimension, "Без значения")
     rows = db.execute(
         select(
-            func.coalesce(dimension, "Без значения").label("name"),
+            name_expr.label("name"),
             func.coalesce(gross_sales_expr, 0.0).label("gross_sales"),
             func.coalesce(refunds_expr, 0.0).label("refunds"),
         )
         .where(*conditions)
-        .group_by(func.coalesce(dimension, "Без значения"))
+        .group_by(name_expr)
         .order_by(func.coalesce(refunds_expr, 0.0).desc())
         .limit(limit)
     ).all()
@@ -317,14 +319,15 @@ def _group_orders_and_aov(
             case((table.c.operation_type == "sale", _order_key(table)), else_=None)
         )
     )
+    name_expr = func.coalesce(dimension, "Без значения")
     rows = db.execute(
         select(
-            func.coalesce(dimension, "Без значения").label("name"),
+            name_expr.label("name"),
             func.coalesce(revenue_expr, 0.0).label("revenue"),
             func.coalesce(orders_expr, 0).label("orders"),
         )
         .where(*conditions)
-        .group_by(func.coalesce(dimension, "Без значения"))
+        .group_by(name_expr)
         .order_by(func.coalesce(revenue_expr, 0.0).desc())
         .limit(limit)
     ).all()
@@ -347,14 +350,15 @@ def _group_net_profit(
 ) -> list[dict[str, Any]]:
     revenue_expr = _revenue_expression(table)
     fees_expr = _fees_expression(table)
+    name_expr = func.coalesce(dimension, "Без значения")
     rows = db.execute(
         select(
-            func.coalesce(dimension, "Без значения").label("name"),
+            name_expr.label("name"),
             func.coalesce(revenue_expr, 0.0).label("revenue"),
             func.coalesce(fees_expr, 0.0).label("fees"),
         )
         .where(*conditions)
-        .group_by(func.coalesce(dimension, "Без значения"))
+        .group_by(name_expr)
         .order_by(func.coalesce(revenue_expr, 0.0).desc())
         .limit(limit)
     ).all()
@@ -684,13 +688,14 @@ def get_dashboard_data(
     growth_breakdowns: list[dict[str, Any]] = []
     holes: list[dict[str, Any]] = []
     if wow_from and wow_to:
+        group_name_expr = func.coalesce(group_column, "Без значения")
         current_groups = db.execute(
             select(
-                func.coalesce(group_column, "Без значения").label("name"),
+                group_name_expr.label("name"),
                 func.coalesce(_revenue_expression(table), 0.0).label("revenue"),
             )
             .where(*conditions)
-            .group_by(func.coalesce(group_column, "Без значения"))
+            .group_by(group_name_expr)
         ).all()
         previous_conditions: list[Any] = []
         if wow_from:
@@ -700,11 +705,11 @@ def get_dashboard_data(
         _apply_filters(previous_conditions, table, filters)
         previous_groups = db.execute(
             select(
-                func.coalesce(group_column, "Без значения").label("name"),
+                group_name_expr.label("name"),
                 func.coalesce(_revenue_expression(table), 0.0).label("revenue"),
             )
             .where(*previous_conditions)
-            .group_by(func.coalesce(group_column, "Без значения"))
+            .group_by(group_name_expr)
         ).all()
         prev_map = {row.name: float(row.revenue or 0.0) for row in previous_groups}
         growth_breakdowns = [
@@ -739,21 +744,23 @@ def get_dashboard_data(
     )
     spend_total = float(spend_total or 0.0)
 
+    campaign_expr = func.coalesce(table.c.utm_campaign, "Без кампании")
+    spend_campaign_expr = func.coalesce(FactMarketingSpend.utm_campaign, "Без кампании")
     revenue_by_campaign = db.execute(
         select(
-            func.coalesce(table.c.utm_campaign, "Без кампании").label("campaign"),
+            campaign_expr.label("campaign"),
             func.coalesce(_revenue_expression(table), 0.0).label("revenue"),
         )
         .where(*conditions)
-        .group_by(func.coalesce(table.c.utm_campaign, "Без кампании"))
+        .group_by(campaign_expr)
     ).all()
     spend_by_campaign = db.execute(
         select(
-            func.coalesce(FactMarketingSpend.utm_campaign, "Без кампании").label("campaign"),
+            spend_campaign_expr.label("campaign"),
             func.coalesce(func.sum(FactMarketingSpend.spend_amount), 0.0).label("spend"),
         )
         .where(FactMarketingSpend.project_id == project_id, *spend_conditions)
-        .group_by(func.coalesce(FactMarketingSpend.utm_campaign, "Без кампании"))
+        .group_by(spend_campaign_expr)
     ).all()
     spend_map = {row.campaign: float(row.spend or 0.0) for row in spend_by_campaign}
     revenue_map = {row.campaign: float(row.revenue or 0.0) for row in revenue_by_campaign}
