@@ -17,6 +17,11 @@ class UploadStatus(str, Enum):
     FAILED = "failed"
 
 
+class MappingStatus(str, Enum):
+    MAPPED = "mapped"
+    UNMAPPED = "unmapped"
+
+
 class UploadPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,9 +29,39 @@ class UploadPublic(BaseModel):
     project_id: int
     type: UploadType
     status: UploadStatus
+    mapping_status: MappingStatus
     file_path: str
     original_filename: str
     created_at: datetime
+    used_in_dashboard: bool = False
+
+
+class DashboardSourceUpdate(BaseModel):
+    data_type: UploadType
+    upload_id: int | None = None
+
+
+class DashboardSourcePublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    project_id: int
+    data_type: UploadType
+    upload_id: int | None = None
+    updated_at: datetime
+
+
+class UploadCleanupMode(str, Enum):
+    ALL = "all"
+    INACTIVE_ONLY = "inactive_only"
+
+
+class UploadCleanupRequest(BaseModel):
+    mode: UploadCleanupMode = UploadCleanupMode.INACTIVE_ONLY
+    older_than_days: int | None = None
+
+
+class UploadCleanupResult(BaseModel):
+    deleted: int
 
 
 class UploadPreview(BaseModel):

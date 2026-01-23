@@ -112,7 +112,11 @@ def _get_upload(upload_id: int, current_user: CurrentUser, db: Session) -> Uploa
     upload = db.scalar(
         select(Upload)
         .join(Project, Upload.project_id == Project.id)
-        .where(Upload.id == upload_id, Project.owner_id == current_user.id)
+        .where(
+            Upload.id == upload_id,
+            Upload.is_deleted.is_(False),
+            Project.owner_id == current_user.id,
+        )
     )
     if not upload:
         raise HTTPException(

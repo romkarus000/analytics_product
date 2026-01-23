@@ -10,6 +10,7 @@ from app.models.alert_event import AlertEvent
 from app.models.alert_rule import AlertRule
 from app.models.metric_definition import MetricDefinition
 from app.models.project import Project
+from app.models.project_dashboard_source import ProjectDashboardSource
 from app.models.project_settings import ProjectSettings
 from app.models.telegram_binding import TelegramBinding
 from app.models.upload import Upload
@@ -29,6 +30,7 @@ __all__ = [
     "Insight",
     "MetricDefinition",
     "Project",
+    "ProjectDashboardSource",
     "ProjectSettings",
     "TelegramBinding",
     "Upload",
