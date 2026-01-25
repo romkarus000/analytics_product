@@ -485,7 +485,7 @@ def _build_quality_report(
             amount_value = parse_float(
                 row_payload.get("amount", {}).get("raw", "")
             )
-            if amount_value is None or amount_value == 0:
+            if amount_value is None:
                 errors.append(
                     QualityIssue(
                         row=row_index,
