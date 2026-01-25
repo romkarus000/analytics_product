@@ -381,22 +381,23 @@ def get_fees_total_details(
                 f"❗ Комиссии растут быстрее выручки: доля комиссии выросла до {fee_share_current:.2%}."
             )
     if payment_rows and fee_share_current is not None and fees_total_current > 0:
+        payment_name_expr = func.coalesce(table.c.payment_method, "Без значения")
         payment_current = db.execute(
             select(
-                func.coalesce(table.c.payment_method, "Без значения").label("name"),
+                payment_name_expr.label("name"),
                 func.coalesce(_fees_sum(table), 0.0).label("fees_total"),
                 func.coalesce(_gross_sales_sum(table), 0.0).label("gross_sales"),
             )
             .where(*current_conditions)
-            .group_by(func.coalesce(table.c.payment_method, "Без значения"))
+            .group_by(payment_name_expr)
         ).all()
         payment_previous = db.execute(
             select(
-                func.coalesce(table.c.payment_method, "Без значения").label("name"),
+                payment_name_expr.label("name"),
                 func.coalesce(_fees_sum(table), 0.0).label("fees_total"),
             )
             .where(*previous_conditions)
-            .group_by(func.coalesce(table.c.payment_method, "Без значения"))
+            .group_by(payment_name_expr)
         ).all()
         prev_map = {row.name: float(row.fees_total or 0.0) for row in payment_previous}
         best_shift = None
