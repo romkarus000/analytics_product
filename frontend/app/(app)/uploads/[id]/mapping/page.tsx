@@ -50,15 +50,9 @@ type ImportResult = {
   imported: number;
 };
 
-const OPERATION_TYPE_ALIASES: Record<string, string[]> = {
-  sale: ["sale", "оплата", "платеж", "покупка", "payment"],
-  refund: ["refund", "возврат", "возмещение", "return"],
-};
-
 const REQUIRED_FIELDS: Record<UploadType, string[]> = {
   transactions: [
     "paid_at",
-    "operation_type",
     "amount",
   ],
   marketing_spend: ["date", "spend_amount"],
@@ -98,7 +92,6 @@ const FIELD_OPTIONS: Record<UploadType, string[]> = {
     "transaction_id",
     "order_id",
     "paid_at",
-    "operation_type",
     "amount",
     "payment_method",
     "group_1",
@@ -136,8 +129,6 @@ export default function UploadMappingPage() {
   const [normalization, setNormalization] = useState<
     Record<string, NormalizationRule>
   >({});
-  const [operationTypeMapping, setOperationTypeMapping] = useState<Record<string, string>>({});
-  const [unknownOperationPolicy, setUnknownOperationPolicy] = useState<"error" | "ignore">("error");
   const [uploadType, setUploadType] = useState<UploadType | null>(null);
   const [projectId, setProjectId] = useState<number | null>(null);
   const [groupLabels, setGroupLabels] = useState<string[]>([
@@ -205,7 +196,6 @@ export default function UploadMappingPage() {
         });
         setMapping(initialMapping);
         setNormalization(initialNormalization);
-        setOperationTypeMapping({});
       } catch (err) {
         setError("Ошибка сети. Попробуйте ещё раз.");
       } finally {
@@ -262,40 +252,6 @@ export default function UploadMappingPage() {
   const missingRequired = requiredFields.filter(
     (field) => !Object.values(mapping).includes(field),
   );
-  const operationTypeHeader = useMemo(() => {
-    return Object.entries(mapping).find(([, field]) => field === "operation_type")?.[0];
-  }, [mapping]);
-  const operationTypeValues = useMemo(() => {
-    if (!preview || !operationTypeHeader) return [];
-    return preview.column_stats?.[operationTypeHeader]?.unique_values ?? [];
-  }, [operationTypeHeader, preview]);
-
-  const suggestOperationType = (value: string) => {
-    const normalized = value.trim().toLowerCase();
-    if (!normalized) return "";
-    const match = Object.entries(OPERATION_TYPE_ALIASES).find(([, aliases]) =>
-      aliases.includes(normalized),
-    );
-    return match?.[0] ?? "";
-  };
-
-  useEffect(() => {
-    if (!operationTypeHeader || operationTypeValues.length === 0) return;
-    setOperationTypeMapping((prev) => {
-      let updated = false;
-      const next = { ...prev };
-      operationTypeValues.forEach((value) => {
-        if (next[value]) return;
-        const suggestion = suggestOperationType(value);
-        if (suggestion) {
-          next[value] = suggestion;
-          updated = true;
-        }
-      });
-      return updated ? next : prev;
-    });
-  }, [operationTypeHeader, operationTypeValues]);
-
   const handleSave = async () => {
     setError("");
     setSuccess("");
@@ -315,9 +271,6 @@ export default function UploadMappingPage() {
     }
     setIsSubmitting(true);
     try {
-      const cleanOperationMapping = Object.fromEntries(
-        Object.entries(operationTypeMapping).filter(([, value]) => value),
-      );
       if (projectId) {
         await fetch(`${API_BASE}/projects/${projectId}/settings`, {
           method: "PUT",
@@ -340,8 +293,6 @@ export default function UploadMappingPage() {
         body: JSON.stringify({
           mapping,
           normalization,
-          operation_type_mapping: cleanOperationMapping,
-          unknown_operation_policy: unknownOperationPolicy,
         }),
       });
       if (response.status === 401) {
@@ -649,60 +600,6 @@ export default function UploadMappingPage() {
                   </select>
                 </div>
               </div>
-            </section>
-
-            <section className="mapping-section">
-              <h2>Настройка типов платежей</h2>
-              {operationTypeHeader ? (
-                <>
-                  <p className="muted">
-                    Колонка: <strong>{operationTypeHeader}</strong>
-                  </p>
-                  <p className="muted">
-                    Для каждого значения укажите, это оплата (sale) или возврат (refund).
-                  </p>
-                  <div className="mapping-settings-grid">
-                    {operationTypeValues.length > 0 ? (
-                      operationTypeValues.map((value) => (
-                        <label key={`operation-value-${value}`}>
-                          {value || "—"}
-                          <select
-                            value={operationTypeMapping[value] ?? ""}
-                            onChange={(event) =>
-                              setOperationTypeMapping((prev) => ({
-                                ...prev,
-                                [value]: event.target.value,
-                              }))
-                            }
-                          >
-                            <option value="">Не задано</option>
-                            <option value="sale">Оплата (sale)</option>
-                            <option value="refund">Возврат (refund)</option>
-                          </select>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="muted">Нет уникальных значений в предпросмотре.</p>
-                    )}
-                  </div>
-                  <label>
-                    Политика для неизвестных значений
-                    <select
-                      value={unknownOperationPolicy}
-                      onChange={(event) =>
-                        setUnknownOperationPolicy(event.target.value as "error" | "ignore")
-                      }
-                    >
-                      <option value="error">Ошибка (не импортировать)</option>
-                      <option value="ignore">Игнорировать (warning + пропуск)</option>
-                    </select>
-                  </label>
-                </>
-              ) : (
-                <p className="muted">
-                  Выберите колонку для поля “Тип платежа”, чтобы настроить значения.
-                </p>
-              )}
             </section>
 
             <div className="mapping-actions">
