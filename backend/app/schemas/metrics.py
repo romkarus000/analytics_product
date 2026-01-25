@@ -261,6 +261,53 @@ class NetRevenueDetailsResponse(BaseModel):
     signals: list[NetRevenueSignal] = Field(default_factory=list)
 
 
+class BestWorstPeriod(BaseModel):
+    from_date: date = Field(alias="from")
+    to_date: date = Field(alias="to")
+    total_revenue: float
+    days_count: int
+    avg_day_revenue: float
+
+
+class BestWorstSeriesItem(BaseModel):
+    date: date
+    revenue: float
+    orders: int
+
+
+class BestWorstDriverItem(BaseModel):
+    name: str
+    revenue: float
+    share: float
+    delta_abs: float
+    delta_pct: float | None
+
+
+class BestWorstDrivers(BaseModel):
+    products: list[BestWorstDriverItem] = Field(default_factory=list)
+    groups: list[BestWorstDriverItem] = Field(default_factory=list)
+    managers: list[BestWorstDriverItem] = Field(default_factory=list)
+
+
+class BestWorstDay(BaseModel):
+    date: date
+    revenue: float
+    orders: int
+    drivers: BestWorstDrivers
+
+
+class BestWorstAvailability(BaseModel):
+    missing_fields: list[str] = Field(default_factory=list)
+
+
+class BestWorstDaysResponse(BaseModel):
+    period: BestWorstPeriod
+    series: list[BestWorstSeriesItem] = Field(default_factory=list)
+    best: BestWorstDay | None = None
+    worst: BestWorstDay | None = None
+    availability: BestWorstAvailability
+
+
 class FeesTotalSummary(BaseModel):
     fees_total_current: float
     fees_total_previous: float
