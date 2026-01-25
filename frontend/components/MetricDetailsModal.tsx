@@ -161,38 +161,6 @@ const MetricDetailsModal = ({
     }
   }, [activeDriverTab, data]);
 
-  if (!open) {
-    return null;
-  }
-
-  const handlePreserveScroll = (callback: () => void) => {
-    const currentScroll = bodyRef.current?.scrollTop ?? 0;
-    callback();
-    requestAnimationFrame(() => {
-      if (bodyRef.current) {
-        bodyRef.current.scrollTop = currentScroll;
-      }
-    });
-  };
-
-  const maxSeriesValue = data?.series.reduce((max, item) => Math.max(max, item.value), 0) ?? 0;
-  const driverTabs = [
-    { key: "products" as const, label: "Продукты" },
-    { key: "groups" as const, label: "Группы" },
-    { key: "managers" as const, label: "Менеджеры" },
-  ];
-  const managerUnavailable = data?.availability.missing_fields.includes("manager") ?? false;
-  const activeDrivers =
-    data?.drivers[activeDriverTab]?.[driverMode] ?? [];
-
-  const periodLabel = data
-    ? `Текущий период: ${data.current.from} — ${data.current.to} vs Предыдущий период: ${data.previous.from} — ${data.previous.to}`
-    : "";
-  const deltaSign = data ? (data.change.delta_abs >= 0 ? "+" : "−") : "";
-  const deltaFormatted = data
-    ? `${deltaSign}${formatCurrencyRUB(Math.abs(data.change.delta_abs))}`
-    : "";
-
   const insights = useMemo(() => {
     if (!data) {
       return [];
@@ -248,6 +216,38 @@ const MetricDetailsModal = ({
     }
     return items;
   }, [data]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handlePreserveScroll = (callback: () => void) => {
+    const currentScroll = bodyRef.current?.scrollTop ?? 0;
+    callback();
+    requestAnimationFrame(() => {
+      if (bodyRef.current) {
+        bodyRef.current.scrollTop = currentScroll;
+      }
+    });
+  };
+
+  const maxSeriesValue = data?.series.reduce((max, item) => Math.max(max, item.value), 0) ?? 0;
+  const driverTabs = [
+    { key: "products" as const, label: "Продукты" },
+    { key: "groups" as const, label: "Группы" },
+    { key: "managers" as const, label: "Менеджеры" },
+  ];
+  const managerUnavailable = data?.availability.missing_fields.includes("manager") ?? false;
+  const activeDrivers =
+    data?.drivers[activeDriverTab]?.[driverMode] ?? [];
+
+  const periodLabel = data
+    ? `Текущий период: ${data.current.from} — ${data.current.to} vs Предыдущий период: ${data.previous.from} — ${data.previous.to}`
+    : "";
+  const deltaSign = data ? (data.change.delta_abs >= 0 ? "+" : "−") : "";
+  const deltaFormatted = data
+    ? `${deltaSign}${formatCurrencyRUB(Math.abs(data.change.delta_abs))}`
+    : "";
 
   const renderDriverTable = (items: GrossSalesDriverItem[]) => {
     if (!items.length) {
