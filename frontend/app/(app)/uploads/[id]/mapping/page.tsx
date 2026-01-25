@@ -252,6 +252,19 @@ export default function UploadMappingPage() {
   const missingRequired = requiredFields.filter(
     (field) => !Object.values(mapping).includes(field),
   );
+  const fieldOptions = useMemo(() => {
+    if (!uploadType) return ["ignore"];
+    const options = FIELD_OPTIONS[uploadType];
+    if (uploadType !== "transactions") return options;
+    if (options.includes("operation_type")) return options;
+    const paidAtIndex = options.indexOf("paid_at");
+    const insertIndex = paidAtIndex >= 0 ? paidAtIndex + 1 : options.length;
+    return [
+      ...options.slice(0, insertIndex),
+      "operation_type",
+      ...options.slice(insertIndex),
+    ];
+  }, [uploadType]);
   const handleSave = async () => {
     setError("");
     setSuccess("");
@@ -486,13 +499,11 @@ export default function UploadMappingPage() {
                             }
                           >
                             <option value="">Выберите смысл</option>
-                            {(uploadType ? FIELD_OPTIONS[uploadType] : ["ignore"]).map(
-                              (option) => (
+                            {fieldOptions.map((option) => (
                                 <option key={`${header}-${option}`} value={option}>
                                   {FIELD_LABELS[option] ?? option}
                                 </option>
-                              ),
-                            )}
+                              ))}
                           </select>
                         </td>
                         <td>
