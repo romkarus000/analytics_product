@@ -92,7 +92,6 @@ const FIELD_OPTIONS: Record<UploadType, string[]> = {
     "transaction_id",
     "order_id",
     "paid_at",
-    "operation_type",
     "amount",
     "payment_method",
     "group_1",

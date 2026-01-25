@@ -67,7 +67,6 @@ SUGGESTION_RULES: dict[str, list[str]] = {
         "дата",
         "date",
     ],
-    "operation_type": ["operation_type", "operation type", "тип операции", "operation"],
     "amount": ["amount", "sum", "сумма", "стоимость", "оплата"],
     "payment_method": ["payment method", "payment_method", "method", "способ оплаты"],
     "client_id": ["client_id", "client id", "customer_id", "id клиента", "клиент"],
@@ -255,7 +254,6 @@ def _build_mapping_suggestions(
         available_fields = {
             "paid_at",
             "amount",
-            "operation_type",
             "payment_method",
             "group_1",
             "group_2",

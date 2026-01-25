@@ -73,7 +73,6 @@ def test_save_mapping(client: TestClient) -> None:
         "mapping": {
             "order_id": "order_id",
             "paid_at": "paid_at",
-            "operation_type": "operation_type",
             "amount": "amount",
             "client_id": "client_id",
             "product_name": "product_name",
