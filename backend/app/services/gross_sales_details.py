@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import case, func, literal, select, union_all
@@ -103,8 +103,15 @@ def _build_driver_items(
                 "share_current": share_current,
             }
         )
-    items.sort(key=lambda item: abs(item["delta_abs"]), reverse=True)
-    return items[:5]
+    return items
+
+
+def _split_driver_items(items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    up_items = [item for item in items if item["delta_abs"] > 0]
+    down_items = [item for item in items if item["delta_abs"] < 0]
+    up_items.sort(key=lambda item: item["delta_abs"], reverse=True)
+    down_items.sort(key=lambda item: item["delta_abs"])
+    return {"up": up_items[:10], "down": down_items[:10]}
 
 
 def _driver_name_from_group(table: Any) -> Any:
@@ -144,18 +151,43 @@ def get_gross_sales_details(
     delta_abs = current_value - previous_value
     delta_pct = delta_abs / previous_value if previous_value else None
 
+    series_granularity = "day" if (to_date - from_date).days + 1 <= 31 else "week"
+    bucket_expr = (
+        table.c.date.label("bucket")
+        if series_granularity == "day"
+        else func.date_trunc("week", table.c.date).label("bucket")
+    )
     series_rows = db.execute(
         select(
-            table.c.date.label("date"),
+            bucket_expr,
             _gross_sales_sum(table).label("value"),
         )
         .where(*current_conditions)
-        .group_by(table.c.date)
-        .order_by(table.c.date)
+        .group_by(bucket_expr)
+        .order_by(bucket_expr)
     ).all()
-    series = [
-        {"date": row.date.isoformat(), "value": float(row.value or 0.0)}
-        for row in series_rows
+    series: list[dict[str, Any]] = []
+    for row in series_rows:
+        bucket_value = row.bucket
+        if series_granularity == "week":
+            bucket_date = (
+                bucket_value.date()
+                if isinstance(bucket_value, datetime)
+                else bucket_value
+            )
+            iso = bucket_date.isocalendar()
+            bucket_label = f"{iso.year}-W{iso.week:02d}"
+        else:
+            bucket_label = (
+                bucket_value.isoformat()
+                if isinstance(bucket_value, date)
+                else str(bucket_value)
+            )
+        series.append({"bucket": bucket_label, "value": float(row.value or 0.0)})
+
+    top_buckets = [
+        item["bucket"]
+        for item in sorted(series, key=lambda item: item["value"], reverse=True)[:5]
     ]
 
     product_rows = _driver_rows(
@@ -174,11 +206,11 @@ def get_gross_sales_details(
         )
 
     drivers = {
-        "products": _build_driver_items(product_rows, current_value),
-        "groups": _build_driver_items(group_rows, current_value),
-        "managers": _build_driver_items(manager_rows, current_value)
+        "products": _split_driver_items(_build_driver_items(product_rows, current_value)),
+        "groups": _split_driver_items(_build_driver_items(group_rows, current_value)),
+        "managers": _split_driver_items(_build_driver_items(manager_rows, current_value))
         if manager_rows
-        else [],
+        else {"up": [], "down": []},
     }
 
     product_current_rows = db.execute(
@@ -200,9 +232,24 @@ def get_gross_sales_details(
     top3_share = (
         sum(item["value"] for item in top3) / current_value if current_value else 0.0
     )
+    top3_items = [
+        {
+            "name": item["name"],
+            "value": item["value"],
+            "share": (item["value"] / current_value) if current_value else 0.0,
+        }
+        for item in top3
+    ]
 
     insights: list[dict[str, Any]] = []
-    all_driver_items = drivers["products"] + drivers["groups"] + drivers["managers"]
+    all_driver_items = (
+        drivers["products"]["up"]
+        + drivers["products"]["down"]
+        + drivers["groups"]["up"]
+        + drivers["groups"]["down"]
+        + drivers["managers"]["up"]
+        + drivers["managers"]["down"]
+    )
     if all_driver_items:
         top_driver = max(all_driver_items, key=lambda item: abs(item["delta_abs"]))
         insights.append(
@@ -240,12 +287,16 @@ def get_gross_sales_details(
         "previous": {"value": previous_value, "from": prev_from, "to": prev_to},
         "change": {"delta_abs": delta_abs, "delta_pct": delta_pct},
         "series": series,
+        "series_granularity": series_granularity,
+        "top_buckets": top_buckets,
         "drivers": drivers,
         "concentration": {
             "top1_share": top1_share,
             "top3_share": top3_share,
             "top1_name": top1["name"] if top1 else None,
+            "top1_value": top1["value"] if top1 else 0.0,
             "top3_names": [item["name"] for item in top3],
+            "top3_items": top3_items,
         },
         "insights": insights,
         "availability": {

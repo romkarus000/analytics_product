@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,7 +33,7 @@ class MetricValueResponse(BaseModel):
 
 
 class GrossSalesSeriesItem(BaseModel):
-    date: date
+    bucket: str
     value: float
 
 
@@ -57,17 +57,30 @@ class GrossSalesDriverItem(BaseModel):
     share_current: float
 
 
+class GrossSalesDriverSplit(BaseModel):
+    up: list[GrossSalesDriverItem] = Field(default_factory=list)
+    down: list[GrossSalesDriverItem] = Field(default_factory=list)
+
+
 class GrossSalesDrivers(BaseModel):
-    products: list[GrossSalesDriverItem] = Field(default_factory=list)
-    groups: list[GrossSalesDriverItem] = Field(default_factory=list)
-    managers: list[GrossSalesDriverItem] = Field(default_factory=list)
+    products: GrossSalesDriverSplit
+    groups: GrossSalesDriverSplit
+    managers: GrossSalesDriverSplit
+
+
+class GrossSalesConcentrationItem(BaseModel):
+    name: str
+    value: float
+    share: float
 
 
 class GrossSalesConcentration(BaseModel):
     top1_share: float
     top3_share: float
     top1_name: str | None = None
+    top1_value: float = 0.0
     top3_names: list[str] = Field(default_factory=list)
+    top3_items: list[GrossSalesConcentrationItem] = Field(default_factory=list)
 
 
 class GrossSalesInsight(BaseModel):
@@ -87,6 +100,8 @@ class GrossSalesDetailsResponse(BaseModel):
     previous: GrossSalesPeriod
     change: GrossSalesChange
     series: list[GrossSalesSeriesItem] = Field(default_factory=list)
+    series_granularity: Literal["day", "week"]
+    top_buckets: list[str] = Field(default_factory=list)
     drivers: GrossSalesDrivers
     concentration: GrossSalesConcentration
     insights: list[GrossSalesInsight] = Field(default_factory=list)

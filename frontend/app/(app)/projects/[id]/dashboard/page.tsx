@@ -13,7 +13,7 @@ import Skeleton from "../../../../../components/ui/Skeleton";
 import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
-import MetricDetailsDrawer from "../../../../../components/MetricDetailsDrawer";
+import MetricDetailsModal from "../../../../../components/MetricDetailsModal";
 import {
   formatCurrencyRUB,
   formatNumber,
@@ -147,7 +147,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
-  const [grossSalesDrawerOpen, setGrossSalesDrawerOpen] = useState(false);
+  const [grossSalesModalOpen, setGrossSalesModalOpen] = useState(false);
   const [latestUploadAt, setLatestUploadAt] = useState<string | null>(null);
 
   const insightByMetric = useMemo(() => {
@@ -707,13 +707,13 @@ export default function DashboardPage() {
                     role={isGrossSales ? "button" : undefined}
                     tabIndex={isGrossSales ? 0 : undefined}
                     onClick={
-                      isGrossSales ? () => setGrossSalesDrawerOpen(true) : undefined
+                      isGrossSales ? () => setGrossSalesModalOpen(true) : undefined
                     }
                     onKeyDown={
                       isGrossSales
                         ? (event) => {
                             if (event.key === "Enter" || event.key === " ") {
-                              setGrossSalesDrawerOpen(true);
+                              setGrossSalesModalOpen(true);
                             }
                           }
                         : undefined
@@ -850,9 +850,9 @@ export default function DashboardPage() {
       </Dialog>
 
       {projectId ? (
-        <MetricDetailsDrawer
-          open={grossSalesDrawerOpen}
-          onClose={() => setGrossSalesDrawerOpen(false)}
+        <MetricDetailsModal
+          open={grossSalesModalOpen}
+          onClose={() => setGrossSalesModalOpen(false)}
           projectId={projectId}
           fromDate={fromDate}
           toDate={toDate}
