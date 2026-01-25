@@ -14,7 +14,7 @@ import Skeleton from "../../../../../components/ui/Skeleton";
 import Tooltip from "../../../../../components/ui/Tooltip";
 import { useToast } from "../../../../../components/ui/Toast";
 
-const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+const MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
 const allowedExtensions = [".csv", ".xlsx"];
 
 const statusLabels: Record<UploadRecord["status"], string> = {
@@ -102,7 +102,7 @@ export default function UploadsPage() {
       return "Разрешены только файлы CSV или XLSX.";
     }
     if (selectedFile.size > MAX_UPLOAD_SIZE) {
-      return "Размер файла превышает 10 МБ.";
+      return "Размер файла превышает 20 МБ.";
     }
     return "";
   };

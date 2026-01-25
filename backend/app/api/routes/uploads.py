@@ -29,7 +29,7 @@ router = APIRouter(prefix="/projects", tags=["uploads"])
 uploads_router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 ALLOWED_EXTENSIONS = {".csv", ".xlsx"}
-MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 
 
 def _ensure_project(
