@@ -51,7 +51,6 @@ router = APIRouter(prefix="/uploads", tags=["upload-mapping"])
 REQUIRED_FIELDS: dict[UploadType, list[str]] = {
     UploadType.TRANSACTIONS: [
         "paid_at",
-        "operation_type",
         "amount",
     ],
     UploadType.MARKETING_SPEND: ["date", "spend_amount"],
@@ -371,6 +370,7 @@ def _build_quality_report(
 
     seen_transactions: set[str] = set()
     optional_fields = [
+        "operation_type",
         "transaction_id",
         "order_id",
         "client_id",
@@ -742,7 +742,11 @@ def save_mapping(
 ) -> ColumnMappingPublic:
     upload = _get_upload(upload_id, current_user, db)
     required_fields = REQUIRED_FIELDS[upload.type]
-    selected_fields = {value for value in payload.mapping.values() if value}
+    cleaned_mapping = {
+        header: (None if value in {"", None, "not_set"} else value)
+        for header, value in (payload.mapping or {}).items()
+    }
+    selected_fields = {value for value in cleaned_mapping.values() if value}
     missing = [field for field in required_fields if field not in selected_fields]
     if missing:
         raise HTTPException(
@@ -771,7 +775,7 @@ def save_mapping(
             detail="Неверные значения для маппинга типов операций.",
         )
     mapping_payload = {
-        "mapping": payload.mapping,
+        "mapping": cleaned_mapping,
         "value_mapping": {"operation_type": operation_mapping},
         "unknown_operation_policy": payload.unknown_operation_policy,
     }
