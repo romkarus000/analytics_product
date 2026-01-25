@@ -554,6 +554,14 @@ p {
   font-size: 20px;
 }
 
+.metric-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
 .metric-highlight-card {
   border-radius: 16px;
   padding: 14px 16px;
@@ -573,6 +581,54 @@ p {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+}
+
+.metric-chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.metric-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.metric-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 4px;
+  background: #2563eb;
+}
+
+.legend-dot.gross {
+  background: #16a34a;
+}
+
+.legend-dot.refunds {
+  background: #dc2626;
+}
+
+.legend-dot.bar {
+  background: #2563eb;
 }
 
 .gross-sales-chart-subtitle {
@@ -625,6 +681,21 @@ p {
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.metric-drivers-subheader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.metric-info {
+  font-size: 12px;
+  color: var(--color-muted);
+  cursor: help;
+  text-decoration: underline;
 }
 
 .metric-drivers-tabs {

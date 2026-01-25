@@ -15,9 +15,11 @@ from app.schemas.metrics import (
     GrossSalesDetailsResponse,
     MetricDefinitionPublic,
     MetricValueResponse,
+    NetRevenueDetailsResponse,
     RefundsDetailsResponse,
 )
 from app.services.gross_sales_details import get_gross_sales_details
+from app.services.net_revenue_details import get_net_revenue_details
 from app.services.refunds_details import get_refunds_details
 from app.services.metrics import (
     compute_metric,
@@ -167,3 +169,27 @@ def get_refunds_details_endpoint(
         filters=filters_payload,
     )
     return RefundsDetailsResponse.model_validate(details)
+
+
+@router.get(
+    "/{project_id}/metrics/net_revenue/details",
+    response_model=NetRevenueDetailsResponse,
+)
+def get_net_revenue_details_endpoint(
+    project_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+    from_date: date = Query(alias="from"),
+    to_date: date = Query(alias="to"),
+    filters: str | None = Query(default=None),
+) -> NetRevenueDetailsResponse:
+    _get_project(project_id, current_user, db)
+    filters_payload = _parse_filters(filters)
+    details = get_net_revenue_details(
+        db=db,
+        project_id=project_id,
+        from_date=from_date,
+        to_date=to_date,
+        filters=filters_payload,
+    )
+    return NetRevenueDetailsResponse.model_validate(details)
