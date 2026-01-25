@@ -13,6 +13,11 @@ import Skeleton from "../../../../../components/ui/Skeleton";
 import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
+import {
+  formatCurrencyRUB,
+  formatNumber,
+  formatPercent,
+} from "../../../../lib/format";
 
 type MetricDelta = {
   wow: number | null;
@@ -417,14 +422,26 @@ export default function DashboardPage() {
     return dashboard.packs[activeTab] ?? null;
   }, [activeTab, dashboard]);
 
-  const formatValue = (value: number | null) => {
-    if (value === null || Number.isNaN(value)) {
-      return "—";
+  const isPercentKey = (key: string) =>
+    /(rate|share|margin|conversion|pareto)/i.test(key);
+  const isCurrencyKey = (key: string) =>
+    /(revenue|sales|refund|fees|profit|spend|avg|best|worst|net|gross|amount)/i.test(
+      key,
+    );
+
+  const formatByKey = (
+    key: string,
+    value: number | null,
+    contextKey?: string,
+  ) => {
+    const combinedKey = `${key} ${contextKey ?? ""}`.trim();
+    if (isPercentKey(combinedKey)) {
+      return formatPercent(value);
     }
-    if (Number.isInteger(value)) {
-      return value.toString();
+    if (isCurrencyKey(combinedKey)) {
+      return formatCurrencyRUB(value);
     }
-    return value.toFixed(2);
+    return formatNumber(value);
   };
 
   const renderDelta = (delta?: MetricDelta | null) => {
@@ -433,12 +450,8 @@ export default function DashboardPage() {
     }
     return (
       <div className="kpi-delta">
-        {delta.wow !== null ? (
-          <span>WoW: {(delta.wow * 100).toFixed(1)}%</span>
-        ) : null}
-        {delta.mom !== null ? (
-          <span>MoM: {(delta.mom * 100).toFixed(1)}%</span>
-        ) : null}
+        {delta.wow !== null ? <span>WoW: {formatPercent(delta.wow)}</span> : null}
+        {delta.mom !== null ? <span>MoM: {formatPercent(delta.mom)}</span> : null}
       </div>
     );
   };
@@ -499,7 +512,7 @@ export default function DashboardPage() {
                   {columns.map((column) => (
                     <td key={`${title}-${index}-${column}`}>
                       {typeof row[column] === "number"
-                        ? formatValue(row[column] as number)
+                        ? formatByKey(column, row[column] as number, title)
                         : (row[column] as string)}
                     </td>
                   ))}
@@ -534,108 +547,111 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="page">
-      <section className="page-header">
-        <div>
-          <h2 className="section-title">Дэшборд</h2>
-          <p className="helper-text">
-            Что дальше? Настройте фильтры, чтобы получить сводку по продажам.
+    <div className="page dashboard-page">
+      <div className="dashboard-toolbar">
+        {latestUploadAt ? (
+          <p className="dashboard-meta">
+            Последнее обновление данных:{" "}
+            <span>{new Date(latestUploadAt).toLocaleString("ru-RU")}</span>
           </p>
-        </div>
-        <div className="inline-actions">
-          <Button variant="secondary" onClick={() => router.push(`/projects/${projectId}`)}>
-            К проекту
-          </Button>
-          <Button variant="destructive" onClick={() => setClearDialogOpen(true)}>
-            Очистить дашборд
-          </Button>
-        </div>
-      </section>
+        ) : (
+          <span className="dashboard-meta muted">Данные обновляются…</span>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ghost-danger"
+          onClick={() => setClearDialogOpen(true)}
+        >
+          Очистить дашборд
+        </Button>
+      </div>
 
       <Card>
-        <div className="grid">
-          <h3 className="section-title">Фильтры</h3>
-          <div className="grid-2">
-            <label className="field">
-              Период с
-              <Input
-                type="date"
-                value={fromDate}
-                onChange={(event) => setFromDate(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              Период по
-              <Input
-                type="date"
-                value={toDate}
-                onChange={(event) => setToDate(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              Категория продукта
-              <Select
-                value={productCategory}
-                onChange={(event) => setProductCategory(event.target.value)}
-              >
-                <option value="">Все категории</option>
-                {categories.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="field">
-              Продукт
-              <Select value={productName} onChange={(event) => setProductName(event.target.value)}>
-                <option value="">Все продукты</option>
-                {productNames.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="field">
-              Менеджер
-              <Select value={manager} onChange={(event) => setManager(event.target.value)}>
-                <option value="">Все менеджеры</option>
-                {managerNames.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="field">
-              Тип продукта
-              <Select value={productType} onChange={(event) => setProductType(event.target.value)}>
-                <option value="">Все типы</option>
-                {types.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </Select>
-            </label>
+        <details className="filters-panel" open>
+          <summary className="filters-summary">
+            <span className="section-title">Фильтры</span>
+          </summary>
+          <div className="filters-body">
+            <div className="grid-2">
+              <label className="field">
+                Период с
+                <Input
+                  type="date"
+                  value={fromDate}
+                  onChange={(event) => setFromDate(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Период по
+                <Input
+                  type="date"
+                  value={toDate}
+                  onChange={(event) => setToDate(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                Категория продукта
+                <Select
+                  value={productCategory}
+                  onChange={(event) => setProductCategory(event.target.value)}
+                >
+                  <option value="">Все категории</option>
+                  {categories.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="field">
+                Продукт
+                <Select
+                  value={productName}
+                  onChange={(event) => setProductName(event.target.value)}
+                >
+                  <option value="">Все продукты</option>
+                  {productNames.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="field">
+                Менеджер
+                <Select value={manager} onChange={(event) => setManager(event.target.value)}>
+                  <option value="">Все менеджеры</option>
+                  {managerNames.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="field">
+                Тип продукта
+                <Select value={productType} onChange={(event) => setProductType(event.target.value)}>
+                  <option value="">Все типы</option>
+                  {types.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            </div>
           </div>
-          <div className="inline-actions">
-            <Button variant="primary" onClick={handleApply}>
+          <div className="filters-actions">
+            <Button variant="primary" size="sm" onClick={handleApply}>
               Применить
             </Button>
-            <Button variant="secondary" onClick={handleResetFilters}>
-              Сбросить фильтры
+            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+              Сбросить
             </Button>
           </div>
-        </div>
+        </details>
       </Card>
-
-      {latestUploadAt ? (
-        <Card tone="bordered">
-          Последнее обновление данных: {new Date(latestUploadAt).toLocaleString("ru-RU")}
-        </Card>
-      ) : null}
 
       {error ? <Card tone="bordered">{error}</Card> : null}
       {isLoading ? (
@@ -681,26 +697,34 @@ export default function DashboardPage() {
                 const formula = METRIC_FORMULAS[metric.key];
                 return (
                   <div key={metric.key} className="kpi-card">
-                    <span className="kpi-label">
-                      <span>{metric.title}</span>
-                      {formula ? (
-                        <Tooltip content={formula}>
-                          <span
-                            className="kpi-formula"
-                            aria-label={`Формула: ${formula}`}
-                            role="img"
-                          >
-                            ?
-                          </span>
-                        </Tooltip>
+                    <div className="kpi-card-top">
+                      <span className="kpi-header">
+                        <span className="kpi-title">{metric.title}</span>
+                        {formula ? (
+                          <Tooltip content={formula}>
+                            <span
+                              className="kpi-formula"
+                              aria-label={`Формула: ${formula}`}
+                              role="img"
+                            >
+                              ?
+                            </span>
+                          </Tooltip>
+                        ) : null}
+                      </span>
+                      <span className="kpi-value">
+                        {formatByKey(metric.key, metric.value)}
+                      </span>
+                    </div>
+                    <div className="kpi-card-footer">
+                      {renderDelta(metric.delta)}
+                      {renderAvailability(metric)}
+                      {insightByMetric[metric.key] ? (
+                        <p className="helper-text kpi-insight">
+                          {insightByMetric[metric.key].text}
+                        </p>
                       ) : null}
-                    </span>
-                    <span className="kpi-value">{formatValue(metric.value)}</span>
-                    {renderDelta(metric.delta)}
-                    {renderAvailability(metric)}
-                    {insightByMetric[metric.key] ? (
-                      <p className="helper-text">{insightByMetric[metric.key].text}</p>
-                    ) : null}
+                    </div>
                   </div>
                 );
               })}
