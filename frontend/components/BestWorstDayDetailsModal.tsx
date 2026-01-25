@@ -159,10 +159,6 @@ const BestWorstDayDetailsModal = ({
     }
   }, [activeDriverTab, data]);
 
-  if (!open) {
-    return null;
-  }
-
   const handlePreserveScroll = (callback: () => void) => {
     const currentScroll = bodyRef.current?.scrollTop ?? 0;
     callback();
@@ -242,6 +238,10 @@ const BestWorstDayDetailsModal = ({
     }
     return lines;
   }, [dayDetails, deltaAbs, deltaPct, formatSignedCurrency, mode, top1Product, top1Share]);
+
+  if (!open) {
+    return null;
+  }
 
   const renderDriverTable = (items: BestWorstDriverItem[]) => {
     if (!items.length) {
