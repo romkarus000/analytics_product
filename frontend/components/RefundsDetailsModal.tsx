@@ -151,10 +151,6 @@ const RefundsDetailsModal = ({
     loadDetails();
   }, [filterPayload, filters, fromDate, open, projectId, router, toDate]);
 
-  if (!open) {
-    return null;
-  }
-
   const handlePreserveScroll = (callback: () => void) => {
     const currentScroll = bodyRef.current?.scrollTop ?? 0;
     callback();
@@ -272,6 +268,10 @@ const RefundsDetailsModal = ({
     }
     return items.slice(0, 4);
   }, [data]);
+
+  if (!open) {
+    return null;
+  }
 
   return (
     <div className="metric-modal-overlay" role="dialog" aria-modal="true">
