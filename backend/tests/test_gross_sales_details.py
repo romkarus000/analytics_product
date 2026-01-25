@@ -101,7 +101,8 @@ def test_gross_sales_details_endpoint(client: TestClient) -> None:
     assert payload["previous"]["value"] == 300.0
     assert payload["change"]["delta_abs"] == 250.0
     assert payload["change"]["delta_pct"] == pytest.approx(250.0 / 300.0)
-    assert payload["drivers"]["products"][0]["name"] == "alpha"
-    assert payload["drivers"]["products"][0]["delta_abs"] == 400.0 - 100.0
+    assert payload["series_granularity"] == "day"
+    assert payload["drivers"]["products"]["up"][0]["name"] == "alpha"
+    assert payload["drivers"]["products"]["up"][0]["delta_abs"] == 400.0 - 100.0
     assert payload["concentration"]["top1_share"] == pytest.approx(400.0 / 550.0)
     assert payload["availability"]["status"] == "partial"
