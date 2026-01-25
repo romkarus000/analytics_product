@@ -97,6 +97,30 @@ def list_metrics(
     return response
 
 
+@router.get(
+    "/{project_id}/metrics/best-worst-days",
+    response_model=BestWorstDaysResponse,
+)
+def get_best_worst_days_endpoint(
+    project_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+    from_date: date = Query(alias="from"),
+    to_date: date = Query(alias="to"),
+    filters: str | None = Query(default=None),
+) -> BestWorstDaysResponse:
+    _get_project(project_id, current_user, db)
+    filters_payload = _parse_filters(filters)
+    details = get_best_worst_days(
+        db=db,
+        project_id=project_id,
+        from_date=from_date,
+        to_date=to_date,
+        filters=filters_payload,
+    )
+    return BestWorstDaysResponse.model_validate(details)
+
+
 @router.get("/{project_id}/metrics/{metric_key}", response_model=MetricValueResponse)
 def get_metric(
     project_id: int,
