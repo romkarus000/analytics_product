@@ -14,6 +14,7 @@ import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
 import MetricDetailsModal from "../../../../../components/MetricDetailsModal";
+import RefundsDetailsModal from "../../../../../components/RefundsDetailsModal";
 import {
   formatCurrencyRUB,
   formatNumber,
@@ -148,6 +149,7 @@ export default function DashboardPage() {
   const [isClearing, setIsClearing] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [grossSalesModalOpen, setGrossSalesModalOpen] = useState(false);
+  const [refundsModalOpen, setRefundsModalOpen] = useState(false);
   const [latestUploadAt, setLatestUploadAt] = useState<string | null>(null);
 
   const insightByMetric = useMemo(() => {
@@ -700,20 +702,30 @@ export default function DashboardPage() {
               {activePack.metrics.map((metric) => {
                 const formula = METRIC_FORMULAS[metric.key];
                 const isGrossSales = metric.key === "gross_sales";
+                const isRefunds = metric.key === "refunds";
+                const isInteractive = isGrossSales || isRefunds;
                 return (
                   <div
                     key={metric.key}
-                    className={`kpi-card ${isGrossSales ? "interactive" : ""}`}
-                    role={isGrossSales ? "button" : undefined}
-                    tabIndex={isGrossSales ? 0 : undefined}
+                    className={`kpi-card ${isInteractive ? "interactive" : ""}`}
+                    role={isInteractive ? "button" : undefined}
+                    tabIndex={isInteractive ? 0 : undefined}
                     onClick={
-                      isGrossSales ? () => setGrossSalesModalOpen(true) : undefined
+                      isGrossSales
+                        ? () => setGrossSalesModalOpen(true)
+                        : isRefunds
+                          ? () => setRefundsModalOpen(true)
+                          : undefined
                     }
                     onKeyDown={
-                      isGrossSales
+                      isInteractive
                         ? (event) => {
                             if (event.key === "Enter" || event.key === " ") {
-                              setGrossSalesModalOpen(true);
+                              if (isGrossSales) {
+                                setGrossSalesModalOpen(true);
+                              } else if (isRefunds) {
+                                setRefundsModalOpen(true);
+                              }
                             }
                           }
                         : undefined
@@ -853,6 +865,16 @@ export default function DashboardPage() {
         <MetricDetailsModal
           open={grossSalesModalOpen}
           onClose={() => setGrossSalesModalOpen(false)}
+          projectId={projectId}
+          fromDate={fromDate}
+          toDate={toDate}
+          filters={detailFilters}
+        />
+      ) : null}
+      {projectId ? (
+        <RefundsDetailsModal
+          open={refundsModalOpen}
+          onClose={() => setRefundsModalOpen(false)}
           projectId={projectId}
           fromDate={fromDate}
           toDate={toDate}
