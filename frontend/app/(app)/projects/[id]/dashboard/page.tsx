@@ -14,6 +14,7 @@ import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
 import MetricDetailsModal from "../../../../../components/MetricDetailsModal";
+import BestWorstDayDetailsModal from "../../../../../components/BestWorstDayDetailsModal";
 import FeesTotalDetailsModal from "../../../../../components/FeesTotalDetailsModal";
 import NetRevenueDetailsModal from "../../../../../components/NetRevenueDetailsModal";
 import RefundsDetailsModal from "../../../../../components/RefundsDetailsModal";
@@ -154,6 +155,8 @@ export default function DashboardPage() {
   const [refundsModalOpen, setRefundsModalOpen] = useState(false);
   const [netRevenueModalOpen, setNetRevenueModalOpen] = useState(false);
   const [feesTotalModalOpen, setFeesTotalModalOpen] = useState(false);
+  const [bestWorstModalOpen, setBestWorstModalOpen] = useState(false);
+  const [bestWorstMode, setBestWorstMode] = useState<"best" | "worst">("best");
   const [latestUploadAt, setLatestUploadAt] = useState<string | null>(null);
 
   const insightByMetric = useMemo(() => {
@@ -709,8 +712,15 @@ export default function DashboardPage() {
                 const isRefunds = metric.key === "refunds";
                 const isNetRevenue = metric.key === "net_revenue";
                 const isFeesTotal = metric.key === "fees_total";
+                const isBestDayRevenue = metric.key === "best_day_revenue";
+                const isWorstDayRevenue = metric.key === "worst_day_revenue";
                 const isInteractive =
-                  isGrossSales || isRefunds || isNetRevenue || isFeesTotal;
+                  isGrossSales ||
+                  isRefunds ||
+                  isNetRevenue ||
+                  isFeesTotal ||
+                  isBestDayRevenue ||
+                  isWorstDayRevenue;
                 return (
                   <div
                     key={metric.key}
@@ -726,6 +736,16 @@ export default function DashboardPage() {
                             ? () => setNetRevenueModalOpen(true)
                             : isFeesTotal
                               ? () => setFeesTotalModalOpen(true)
+                              : isBestDayRevenue
+                                ? () => {
+                                    setBestWorstMode("best");
+                                    setBestWorstModalOpen(true);
+                                  }
+                                : isWorstDayRevenue
+                                  ? () => {
+                                      setBestWorstMode("worst");
+                                      setBestWorstModalOpen(true);
+                                    }
                           : undefined
                     }
                     onKeyDown={
@@ -740,6 +760,12 @@ export default function DashboardPage() {
                                 setNetRevenueModalOpen(true);
                               } else if (isFeesTotal) {
                                 setFeesTotalModalOpen(true);
+                              } else if (isBestDayRevenue) {
+                                setBestWorstMode("best");
+                                setBestWorstModalOpen(true);
+                              } else if (isWorstDayRevenue) {
+                                setBestWorstMode("worst");
+                                setBestWorstModalOpen(true);
                               }
                             }
                           }
@@ -914,6 +940,17 @@ export default function DashboardPage() {
           fromDate={fromDate}
           toDate={toDate}
           filters={detailFilters}
+        />
+      ) : null}
+      {projectId ? (
+        <BestWorstDayDetailsModal
+          open={bestWorstModalOpen}
+          onClose={() => setBestWorstModalOpen(false)}
+          projectId={projectId}
+          fromDate={fromDate}
+          toDate={toDate}
+          filters={detailFilters}
+          mode={bestWorstMode}
         />
       ) : null}
     </div>

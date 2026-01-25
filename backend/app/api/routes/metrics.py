@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models.project import Project
 from app.schemas.metrics import (
     FeesTotalDetailsResponse,
+    BestWorstDaysResponse,
     GrossSalesDetailsResponse,
     MetricDefinitionPublic,
     MetricValueResponse,
@@ -20,6 +21,7 @@ from app.schemas.metrics import (
     RefundsDetailsResponse,
 )
 from app.services.fees_total_details import get_fees_total_details
+from app.services.best_worst_days import get_best_worst_days
 from app.services.gross_sales_details import get_gross_sales_details
 from app.services.net_revenue_details import get_net_revenue_details
 from app.services.refunds_details import get_refunds_details
@@ -93,6 +95,30 @@ def list_metrics(
             )
         )
     return response
+
+
+@router.get(
+    "/{project_id}/metrics/best-worst-days",
+    response_model=BestWorstDaysResponse,
+)
+def get_best_worst_days_endpoint(
+    project_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+    from_date: date = Query(alias="from"),
+    to_date: date = Query(alias="to"),
+    filters: str | None = Query(default=None),
+) -> BestWorstDaysResponse:
+    _get_project(project_id, current_user, db)
+    filters_payload = _parse_filters(filters)
+    details = get_best_worst_days(
+        db=db,
+        project_id=project_id,
+        from_date=from_date,
+        to_date=to_date,
+        filters=filters_payload,
+    )
+    return BestWorstDaysResponse.model_validate(details)
 
 
 @router.get("/{project_id}/metrics/{metric_key}", response_model=MetricValueResponse)
