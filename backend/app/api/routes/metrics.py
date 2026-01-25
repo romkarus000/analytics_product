@@ -12,12 +12,14 @@ from app.api.deps import CurrentUser
 from app.db.session import get_db
 from app.models.project import Project
 from app.schemas.metrics import (
+    FeesTotalDetailsResponse,
     GrossSalesDetailsResponse,
     MetricDefinitionPublic,
     MetricValueResponse,
     NetRevenueDetailsResponse,
     RefundsDetailsResponse,
 )
+from app.services.fees_total_details import get_fees_total_details
 from app.services.gross_sales_details import get_gross_sales_details
 from app.services.net_revenue_details import get_net_revenue_details
 from app.services.refunds_details import get_refunds_details
@@ -193,3 +195,27 @@ def get_net_revenue_details_endpoint(
         filters=filters_payload,
     )
     return NetRevenueDetailsResponse.model_validate(details)
+
+
+@router.get(
+    "/{project_id}/metrics/fees_total/details",
+    response_model=FeesTotalDetailsResponse,
+)
+def get_fees_total_details_endpoint(
+    project_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+    from_date: date = Query(alias="from"),
+    to_date: date = Query(alias="to"),
+    filters: str | None = Query(default=None),
+) -> FeesTotalDetailsResponse:
+    _get_project(project_id, current_user, db)
+    filters_payload = _parse_filters(filters)
+    details = get_fees_total_details(
+        db=db,
+        project_id=project_id,
+        from_date=from_date,
+        to_date=to_date,
+        filters=filters_payload,
+    )
+    return FeesTotalDetailsResponse.model_validate(details)
