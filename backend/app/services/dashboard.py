@@ -677,6 +677,7 @@ def get_dashboard_data(
         pareto_share = _safe_ratio(pareto_revenue, total_revenue_full)
 
     transitions: list[dict[str, Any]] = []
+    total_transition_pairs = 0
     transition_rows = db.execute(
         select(
             table.c.client_id,
@@ -698,9 +699,12 @@ def get_dashboard_data(
             client_id = str(row.client_id)
             product_name = str(row.product_name_norm)
             if client_id in last_by_client:
-                pair = (last_by_client[client_id], product_name)
-                transition_map[pair] = transition_map.get(pair, 0) + 1
+                previous_product = last_by_client[client_id]
+                if previous_product != product_name:
+                    pair = (previous_product, product_name)
+                    transition_map[pair] = transition_map.get(pair, 0) + 1
             last_by_client[client_id] = product_name
+        total_transition_pairs = len(transition_map)
         transitions = [
             {"from": pair[0], "to": pair[1], "count": count}
             for pair, count in sorted(transition_map.items(), key=lambda item: item[1], reverse=True)
@@ -1177,7 +1181,7 @@ def get_dashboard_data(
                 _metric_card(
                     "product_transitions",
                     "Product Transitions",
-                    float(len(transitions)),
+                    float(total_transition_pairs),
                     None,
                     None,
                     *availability("product_transitions"),
