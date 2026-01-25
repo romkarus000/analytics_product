@@ -14,6 +14,7 @@ import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
 import MetricDetailsModal from "../../../../../components/MetricDetailsModal";
+import NetRevenueDetailsModal from "../../../../../components/NetRevenueDetailsModal";
 import RefundsDetailsModal from "../../../../../components/RefundsDetailsModal";
 import {
   formatCurrencyRUB,
@@ -150,6 +151,7 @@ export default function DashboardPage() {
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [grossSalesModalOpen, setGrossSalesModalOpen] = useState(false);
   const [refundsModalOpen, setRefundsModalOpen] = useState(false);
+  const [netRevenueModalOpen, setNetRevenueModalOpen] = useState(false);
   const [latestUploadAt, setLatestUploadAt] = useState<string | null>(null);
 
   const insightByMetric = useMemo(() => {
@@ -703,7 +705,8 @@ export default function DashboardPage() {
                 const formula = METRIC_FORMULAS[metric.key];
                 const isGrossSales = metric.key === "gross_sales";
                 const isRefunds = metric.key === "refunds";
-                const isInteractive = isGrossSales || isRefunds;
+                const isNetRevenue = metric.key === "net_revenue";
+                const isInteractive = isGrossSales || isRefunds || isNetRevenue;
                 return (
                   <div
                     key={metric.key}
@@ -715,6 +718,8 @@ export default function DashboardPage() {
                         ? () => setGrossSalesModalOpen(true)
                         : isRefunds
                           ? () => setRefundsModalOpen(true)
+                          : isNetRevenue
+                            ? () => setNetRevenueModalOpen(true)
                           : undefined
                     }
                     onKeyDown={
@@ -725,6 +730,8 @@ export default function DashboardPage() {
                                 setGrossSalesModalOpen(true);
                               } else if (isRefunds) {
                                 setRefundsModalOpen(true);
+                              } else if (isNetRevenue) {
+                                setNetRevenueModalOpen(true);
                               }
                             }
                           }
@@ -865,6 +872,16 @@ export default function DashboardPage() {
         <MetricDetailsModal
           open={grossSalesModalOpen}
           onClose={() => setGrossSalesModalOpen(false)}
+          projectId={projectId}
+          fromDate={fromDate}
+          toDate={toDate}
+          filters={detailFilters}
+        />
+      ) : null}
+      {projectId ? (
+        <NetRevenueDetailsModal
+          open={netRevenueModalOpen}
+          onClose={() => setNetRevenueModalOpen(false)}
           projectId={projectId}
           fromDate={fromDate}
           toDate={toDate}

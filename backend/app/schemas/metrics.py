@@ -179,3 +179,83 @@ class RefundsDetailsResponse(BaseModel):
         default_factory=list
     )
     signals: list[RefundsSignal] = Field(default_factory=list)
+
+
+class NetRevenuePeriod(BaseModel):
+    from_date: date = Field(alias="from")
+    to_date: date = Field(alias="to")
+
+
+class NetRevenueTotals(BaseModel):
+    gross_sales_current: float
+    gross_sales_previous: float
+    refunds_current: float
+    refunds_previous: float
+    net_revenue_current: float
+    net_revenue_previous: float
+    delta_abs: float
+    delta_pct: float | None
+    refunds_share_of_gross_current: float | None
+    refunds_share_of_gross_previous: float | None
+    refunds_share_delta_pp: float | None
+
+
+class NetRevenueSeriesPoint(BaseModel):
+    bucket: str
+    gross_sales: float
+    refunds: float
+    net_revenue: float
+
+
+class NetRevenueSeries(BaseModel):
+    granularity: Literal["day", "week"]
+    points: list[NetRevenueSeriesPoint] = Field(default_factory=list)
+    top_buckets_net_revenue: list[str] = Field(default_factory=list)
+
+
+class NetRevenueDriverItem(BaseModel):
+    name: str
+    current_net_revenue: float
+    delta: float
+    share: float
+
+
+class NetRevenueDrivers(BaseModel):
+    products_top10: list[NetRevenueDriverItem] = Field(default_factory=list)
+    groups_top10: list[NetRevenueDriverItem] = Field(default_factory=list)
+    managers_top10: list[NetRevenueDriverItem] = Field(default_factory=list)
+
+
+class NetRevenueNetVsGrossRefundsItem(BaseModel):
+    product_name: str
+    gross_sales: float
+    refunds: float
+    net_revenue: float
+    refund_rate_percent: float | None
+
+
+class NetRevenuePaymentMethodItem(BaseModel):
+    payment_method: str
+    gross_sales: float
+    refunds: float
+    net_revenue: float
+    refund_rate_percent: float | None
+
+
+class NetRevenueSignal(BaseModel):
+    type: str
+    title: str
+    message: str
+    severity: str | None = None
+
+
+class NetRevenueDetailsResponse(BaseModel):
+    periods: dict[str, NetRevenuePeriod]
+    totals: NetRevenueTotals
+    series: NetRevenueSeries
+    drivers: NetRevenueDrivers
+    net_vs_gross_refunds_top10: list[NetRevenueNetVsGrossRefundsItem] = Field(
+        default_factory=list
+    )
+    payment_methods: list[NetRevenuePaymentMethodItem] = Field(default_factory=list)
+    signals: list[NetRevenueSignal] = Field(default_factory=list)
