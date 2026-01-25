@@ -105,7 +105,6 @@ def test_reject_mapping_without_required_fields(client: TestClient) -> None:
         "mapping": {
             "order_id": "order_id",
             "paid_at": "paid_at",
-            "operation_type": "operation_type",
             "client_id": "client_id",
             "product_name": "product_name",
             "product_category": "product_category",

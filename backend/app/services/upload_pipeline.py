@@ -172,7 +172,7 @@ def extract_unknown_operation_policy(mapping_json: dict[str, Any]) -> str:
 def build_field_mapping(mapping_json: dict[str, Any]) -> dict[str, str]:
     field_to_header: dict[str, str] = {}
     for header, field in extract_mapping(mapping_json).items():
-        if not field or field == "ignore":
+        if not field or field in {"ignore", "not_set"}:
             continue
         if field not in field_to_header:
             field_to_header[field] = header
