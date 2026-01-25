@@ -259,3 +259,65 @@ class NetRevenueDetailsResponse(BaseModel):
     )
     payment_methods: list[NetRevenuePaymentMethodItem] = Field(default_factory=list)
     signals: list[NetRevenueSignal] = Field(default_factory=list)
+
+
+class FeesTotalSummary(BaseModel):
+    fees_total_current: float
+    fees_total_previous: float
+    delta_abs: float
+    delta_pct: float | None
+    fee_share_current: float | None
+    gross_sales_current: float
+    method: str
+
+
+class FeesTotalTrendPoint(BaseModel):
+    bucket: str
+    fees_total: float
+    fee_share: float
+
+
+class FeesTotalTrend(BaseModel):
+    granularity: Literal["day", "week"]
+    series: list[FeesTotalTrendPoint] = Field(default_factory=list)
+    top_buckets: list[str] = Field(default_factory=list)
+    anomalies: list[str] = Field(default_factory=list)
+
+
+class FeesTotalBreakdownItem(BaseModel):
+    key: str
+    title: str
+    current: float
+    previous: float
+    delta_abs: float
+    delta_pct: float | None
+    share_current: float
+
+
+class FeesTotalDriverItem(BaseModel):
+    name: str
+    current_fees: float
+    delta_fees: float
+    share_of_fees: float
+
+
+class FeesTotalDrivers(BaseModel):
+    products: list[FeesTotalDriverItem] = Field(default_factory=list)
+    groups: list[FeesTotalDriverItem] = Field(default_factory=list)
+    managers: list[FeesTotalDriverItem] = Field(default_factory=list)
+    payment_method: list[FeesTotalDriverItem] = Field(default_factory=list)
+
+
+class FeesTotalEfficiency(BaseModel):
+    fee_per_order: float | None
+    fee_per_revenue: float | None
+    fees_on_refunds: float | None
+
+
+class FeesTotalDetailsResponse(BaseModel):
+    summary: FeesTotalSummary
+    trend: FeesTotalTrend
+    drivers: FeesTotalDrivers
+    breakdowns: list[FeesTotalBreakdownItem] = Field(default_factory=list)
+    efficiency: FeesTotalEfficiency
+    insights: list[str] = Field(default_factory=list)
