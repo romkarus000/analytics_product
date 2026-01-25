@@ -13,6 +13,7 @@ import Skeleton from "../../../../../components/ui/Skeleton";
 import Tooltip from "../../../../../components/ui/Tooltip";
 
 import { useToast } from "../../../../../components/ui/Toast";
+import MetricDetailsDrawer from "../../../../../components/MetricDetailsDrawer";
 import {
   formatCurrencyRUB,
   formatNumber,
@@ -146,6 +147,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [grossSalesDrawerOpen, setGrossSalesDrawerOpen] = useState(false);
   const [latestUploadAt, setLatestUploadAt] = useState<string | null>(null);
 
   const insightByMetric = useMemo(() => {
@@ -406,6 +408,8 @@ export default function DashboardPage() {
     setGroupPath([]);
     loadDashboard();
   };
+
+  const detailFilters = useMemo(() => buildFilters(), [buildFilters]);
 
   const activePack = useMemo(() => {
     if (!dashboard) {
@@ -695,8 +699,26 @@ export default function DashboardPage() {
             <div className="kpi-grid">
               {activePack.metrics.map((metric) => {
                 const formula = METRIC_FORMULAS[metric.key];
+                const isGrossSales = metric.key === "gross_sales";
                 return (
-                  <div key={metric.key} className="kpi-card">
+                  <div
+                    key={metric.key}
+                    className={`kpi-card ${isGrossSales ? "interactive" : ""}`}
+                    role={isGrossSales ? "button" : undefined}
+                    tabIndex={isGrossSales ? 0 : undefined}
+                    onClick={
+                      isGrossSales ? () => setGrossSalesDrawerOpen(true) : undefined
+                    }
+                    onKeyDown={
+                      isGrossSales
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              setGrossSalesDrawerOpen(true);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
                     <div className="kpi-card-top">
                       <span className="kpi-header">
                         <span className="kpi-title">{metric.title}</span>
@@ -826,6 +848,17 @@ export default function DashboardPage() {
       >
         <p>Вы уверены, что хотите очистить все витрины дашборда?</p>
       </Dialog>
+
+      {projectId ? (
+        <MetricDetailsDrawer
+          open={grossSalesDrawerOpen}
+          onClose={() => setGrossSalesDrawerOpen(false)}
+          projectId={projectId}
+          fromDate={fromDate}
+          toDate={toDate}
+          filters={detailFilters}
+        />
+      ) : null}
     </div>
   );
 }

@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session
 from app.api.deps import CurrentUser
 from app.db.session import get_db
 from app.models.project import Project
-from app.schemas.metrics import MetricDefinitionPublic, MetricValueResponse
+from app.schemas.metrics import (
+    GrossSalesDetailsResponse,
+    MetricDefinitionPublic,
+    MetricValueResponse,
+)
+from app.services.gross_sales_details import get_gross_sales_details
 from app.services.metrics import (
     compute_metric,
     get_metric_definition,
@@ -112,3 +117,27 @@ def get_metric(
         to_date=to_date,
         filters=filters_payload,
     )
+
+
+@router.get(
+    "/{project_id}/metrics/gross-sales/details",
+    response_model=GrossSalesDetailsResponse,
+)
+def get_gross_sales_details_endpoint(
+    project_id: int,
+    current_user: CurrentUser,
+    db: Session = Depends(get_db),
+    from_date: date = Query(alias="from"),
+    to_date: date = Query(alias="to"),
+    filters: str | None = Query(default=None),
+) -> GrossSalesDetailsResponse:
+    _get_project(project_id, current_user, db)
+    filters_payload = _parse_filters(filters)
+    details = get_gross_sales_details(
+        db=db,
+        project_id=project_id,
+        from_date=from_date,
+        to_date=to_date,
+        filters=filters_payload,
+    )
+    return GrossSalesDetailsResponse.model_validate(details)
