@@ -106,3 +106,76 @@ class GrossSalesDetailsResponse(BaseModel):
     concentration: GrossSalesConcentration
     insights: list[GrossSalesInsight] = Field(default_factory=list)
     availability: GrossSalesAvailability
+
+
+class RefundsPeriod(BaseModel):
+    from_date: date = Field(alias="from")
+    to_date: date = Field(alias="to")
+
+
+class RefundsTotals(BaseModel):
+    refunds_current: float
+    refunds_previous: float
+    delta_abs: float
+    delta_pct: float | None
+    gross_sales_current: float
+    refund_rate_current: float | None
+    refund_rate_previous: float | None
+    refund_rate_delta_pp: float | None
+
+
+class RefundsSeriesItem(BaseModel):
+    bucket: str
+    value: float
+
+
+class RefundsSeries(BaseModel):
+    granularity: Literal["day", "week"]
+    series_refunds: list[RefundsSeriesItem] = Field(default_factory=list)
+    series_refund_rate: list[RefundsSeriesItem] = Field(default_factory=list)
+    top_buckets_refunds: list[str] = Field(default_factory=list)
+
+
+class RefundsProductItem(BaseModel):
+    product_name: str
+    gross_sales: float
+    refunds: float
+    refund_rate: float | None
+
+
+class RefundsConcentrationItem(BaseModel):
+    product_name: str | None = None
+    refunds: float
+    share: float
+
+
+class RefundsConcentration(BaseModel):
+    top1: RefundsConcentrationItem | None = None
+    top3_share: float
+
+
+class RefundsPaymentMethodItem(BaseModel):
+    payment_method: str
+    refunds: float
+    share: float
+    gross_sales: float | None = None
+    refund_rate: float | None = None
+
+
+class RefundsSignal(BaseModel):
+    type: str
+    title: str
+    message: str
+    severity: str | None = None
+
+
+class RefundsDetailsResponse(BaseModel):
+    periods: dict[str, RefundsPeriod]
+    totals: RefundsTotals
+    series: RefundsSeries
+    sales_vs_refunds_by_product: list[RefundsProductItem] = Field(default_factory=list)
+    concentration: RefundsConcentration
+    refunds_by_payment_method: list[RefundsPaymentMethodItem] = Field(
+        default_factory=list
+    )
+    signals: list[RefundsSignal] = Field(default_factory=list)
