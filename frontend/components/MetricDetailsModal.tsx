@@ -5,6 +5,7 @@ import { API_BASE } from "../app/lib/api";
 import { formatCurrencyRUB, formatPercent } from "../app/lib/format";
 import Button from "./ui/Button";
 import Skeleton from "./ui/Skeleton";
+import GrossSalesSeriesChart from "./charts/GrossSalesSeriesChart";
 
 type GrossSalesDriverItem = {
   name: string;
@@ -231,7 +232,6 @@ const MetricDetailsModal = ({
     });
   };
 
-  const maxSeriesValue = data?.series.reduce((max, item) => Math.max(max, item.value), 0) ?? 0;
   const driverTabs = [
     { key: "products" as const, label: "Продукты" },
     { key: "groups" as const, label: "Группы" },
@@ -359,40 +359,19 @@ const MetricDetailsModal = ({
               </section>
 
               <section className="metric-section">
-                <h4>Динамика</h4>
-                {data.series.length ? (
-                  <div className="mini-chart">
-                    {data.series.map((item) => {
-                      const label =
-                        data.series_granularity === "week"
-                          ? `Неделя ${item.bucket}`
-                          : item.bucket;
-                      const isTop = data.top_buckets.includes(item.bucket);
-                      return (
-                        <div
-                          key={item.bucket}
-                          className="mini-chart-row"
-                          title={`${label}: ${formatCurrencyRUB(item.value)}`}
-                        >
-                          <span>
-                            {label}
-                            {isTop ? <span className="metric-badge">🔥</span> : null}
-                          </span>
-                          <div className="mini-chart-bar">
-                            <span
-                              style={{
-                                width: `${maxSeriesValue ? (item.value / maxSeriesValue) * 100 : 0}%`,
-                              }}
-                            />
-                          </div>
-                          <strong>{formatCurrencyRUB(item.value)}</strong>
-                        </div>
-                      );
-                    })}
+                <div className="gross-sales-chart-header">
+                  <div>
+                    <h4>Динамика</h4>
+                    <span className="gross-sales-chart-subtitle">
+                      {data.series_granularity === "week" ? "По неделям" : "По дням"}
+                    </span>
                   </div>
-                ) : (
-                  <p className="helper-text">Нет данных по динамике.</p>
-                )}
+                </div>
+                <GrossSalesSeriesChart
+                  series={data.series}
+                  granularity={data.series_granularity}
+                  currency="RUB"
+                />
               </section>
 
               <section className="metric-section">
