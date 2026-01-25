@@ -425,7 +425,7 @@ export default function DashboardPage() {
   const isPercentKey = (key: string) =>
     /(rate|share|margin|conversion|pareto)/i.test(key);
   const isCurrencyKey = (key: string) =>
-    /(revenue|sales|refund|fees|profit|spend|avg|best|worst|net|gross|amount)/i.test(
+    /(revenue|sales|refund|fees|profit|spend|avg|aov|best|worst|net|gross|amount)/i.test(
       key,
     );
 
@@ -435,7 +435,7 @@ export default function DashboardPage() {
     contextKey?: string,
   ) => {
     const combinedKey = `${key} ${contextKey ?? ""}`.trim();
-    if (isPercentKey(combinedKey)) {
+    if (isPercentKey(key)) {
       return formatPercent(value);
     }
     if (isCurrencyKey(combinedKey)) {
