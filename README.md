@@ -1,68 +1,69 @@
-# Analytics Product MVP — Module 0 (Scaffold)
+# Analytics Product MVP
 
-Базовый каркас для продукта “Единая аналитика для онлайн-школ”. Включает фронтенд, бэкенд, инфраструктуру и healthcheck.
+Минимальный каркас монорепозитория для MVP AI-native аналитической платформы.
 
-## Стек
+На текущем шаге добавлена только инфраструктурная основа:
+- каталоги `frontend`, `backend`, `infra`, `docs`, `dbt`, `cube`;
+- шаблон переменных окружения;
+- `docker-compose.yml` только с PostgreSQL;
+- базовые правила форматирования и игнорирования файлов.
 
-- Frontend: Next.js (App Router, TypeScript)
-- Backend: FastAPI + SQLAlchemy 2 + Alembic
-- DB: PostgreSQL
-- Очереди/фоновые задачи: Redis
+Бизнес-логика, FastAPI, Next.js, ClickHouse, Redis, Cube runtime и AI-компоненты на этом шаге **не настраиваются**.
 
-## Локальный запуск
+## Структура репозитория
 
-### 1) Конфигурация окружения
+```text
+.
+├── backend/
+├── cube/
+├── dbt/
+├── docs/
+├── frontend/
+├── infra/
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+└── README.md
+```
+
+## Быстрый старт
+
+### 1. Подготовить переменные окружения
 
 ```bash
 cp .env.example .env
-cp backend/.env.example backend/.env
-cp frontend/.env.local.example frontend/.env.local
 ```
 
-### 2) Docker Compose
+При необходимости измените значения в `.env`.
+
+### 2. Запустить PostgreSQL
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
-Сервисы:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
-- Healthcheck: http://localhost:8000/health
-
-### 3) Миграции Alembic
+### 3. Проверить статус контейнера
 
 ```bash
-cd backend
-alembic upgrade head
+docker compose ps
 ```
 
-## Тесты
+### 4. Проверить доступность PostgreSQL
 
 ```bash
-cd backend
-pytest
+docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
-Интеграционный тест помечен как `integration` и требует `DATABASE_URL`.
+Ожидаемый результат: статус `accepting connections`.
 
-## Структура
+## Что входит в текущий шаг
 
-```
-backend/
-  app/
-    api/
-    core/
-    db/
-    models/
-    schemas/
-    services/
-  alembic/
-frontend/
-  app/
-  components/
-```
+- Подготовка монорепозитория для дальнейшей пошаговой разработки.
+- Минимальная локальная инфраструктура только для PostgreSQL.
 
-## Заметки по модульности
+## Что не входит в текущий шаг
 
-Module 0 — инфраструктурная основа. Бизнес-модули (загрузка таблиц, маппинг, валидация, импорт, метрики, AI-инсайты, Telegram-алерты) будут добавляться поэтапно.
+- Инициализация backend-приложения.
+- Инициализация frontend-приложения.
+- Любая бизнес-логика, API, UI и аналитические пайплайны.
